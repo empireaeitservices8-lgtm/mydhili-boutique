@@ -16,7 +16,6 @@ import {
   Menu,
   X,
   BarChart3,
-  Mail,
 } from "lucide-react";
 
 const navigation = [
@@ -49,11 +48,6 @@ const navigation = [
     name: "Customers",
     href: "/admin/customers",
     icon: Users,
-  },
-  {
-    name: "Newsletter",
-    href: "/admin/newsletter",
-    icon: Mail,
   },
 ];
 

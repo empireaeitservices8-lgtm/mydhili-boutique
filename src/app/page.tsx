@@ -5,7 +5,6 @@ import FeaturedProducts from "@/components/home/FeaturedProducts";
 import WhyChooseUs from "@/components/home/WhyChooseUs";
 import PromoBanner from "@/components/home/PromoBanner";
 import InstagramSection from "@/components/home/InstagramSection";
-import NewsletterSection from "@/components/home/NewsletterSection";
 import ShippingReturnsFAQ from "@/components/home/ShippingReturnsFAQ";
 import FashionFilmsSection from "@/components/home/FashionFilmsSection";
 
@@ -19,7 +18,6 @@ export default function HomePage() {
       <PromoBanner />
       <InstagramSection />
       <FashionFilmsSection />
-      <NewsletterSection />
       <ShippingReturnsFAQ />
     </div>
   );
