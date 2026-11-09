@@ -20,6 +20,7 @@ type Product = {
   price: number;
   compareAtPrice?: number;
   images?: string[];
+  variants?: { sku?: string; size?: string; color?: string; stock?: number }[];
   shortDescription?: string;
   isFeatured?: boolean;
   category?: {
@@ -166,6 +167,10 @@ export default function FeaturedProducts() {
                   )
                 : 0;
 
+              const variants = Array.isArray(product.variants) ? product.variants : [];
+              const totalStock = variants.reduce((sum, v) => sum + Number(v.stock ?? 0), 0);
+              const soldOut = variants.length > 0 && totalStock <= 0;
+
               return (
                 <article key={productId} className="group min-w-0">
                   <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#380712] to-[#6D2636] shadow-[0_10px_30px_rgba(56,7,18,0.07)] transition-all duration-500 ease-out group-hover:-translate-y-1.5 group-hover:shadow-[0_24px_50px_rgba(56,7,18,0.22)]">
@@ -182,6 +187,8 @@ export default function FeaturedProducts() {
                           loading="lazy"
                           onError={() => markBroken(`${productId}-1`)}
                           className={`absolute inset-0 h-full w-full object-cover transition-all duration-700 ease-out ${
+                            soldOut ? "opacity-70 grayscale-[35%]" : ""
+                          } ${
                             secondary && !secondaryBroken
                               ? "group-hover:scale-105 group-hover:opacity-0"
                               : "group-hover:scale-[1.07]"
@@ -205,7 +212,11 @@ export default function FeaturedProducts() {
                     </Link>
 
                     {/* Badge */}
-                    {hasDiscount ? (
+                    {soldOut ? (
+                      <span className="absolute left-2.5 top-2.5 rounded-full bg-rose-700 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-white shadow-md sm:left-3 sm:top-3">
+                        Out of Stock
+                      </span>
+                    ) : hasDiscount ? (
                       <span className="absolute left-2.5 top-2.5 rounded-full bg-[#D4AF69] px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-[#380712] sm:left-3 sm:top-3">
                         Save {discount}%
                       </span>
@@ -251,10 +262,14 @@ export default function FeaturedProducts() {
                     <div className="pointer-events-none absolute inset-x-3 bottom-3 hidden translate-y-3 opacity-0 transition-all duration-300 sm:block sm:group-hover:translate-y-0 sm:group-hover:opacity-100">
                       <Link
                         href={`/products/${product.slug}`}
-                        className="pointer-events-auto flex items-center justify-center gap-2 rounded-full bg-white/95 py-3 text-[11px] font-semibold uppercase tracking-[0.15em] text-[#380712] backdrop-blur-sm transition hover:bg-[#380712] hover:text-[#E6C47A]"
+                        className={`pointer-events-auto flex items-center justify-center gap-2 rounded-full py-3 text-[11px] font-semibold uppercase tracking-[0.15em] backdrop-blur-sm transition ${
+                          soldOut
+                            ? "border border-rose-300 bg-white/95 text-rose-700 hover:bg-rose-700 hover:text-white"
+                            : "bg-white/95 text-[#380712] hover:bg-[#380712] hover:text-[#E6C47A]"
+                        }`}
                       >
                         <ShoppingBag size={15} strokeWidth={1.7} />
-                        Discover Piece
+                        {soldOut ? "Out of stock · Details" : "Discover Piece"}
                       </Link>
                     </div>
                   </div>
@@ -291,6 +306,12 @@ export default function FeaturedProducts() {
                       {hasDiscount && (
                         <span className="text-xs text-stone-400 line-through sm:text-sm">
                           ₹{product.compareAtPrice!.toLocaleString("en-IN")}
+                        </span>
+                      )}
+
+                      {soldOut && (
+                        <span className="rounded-full border border-rose-200 bg-rose-50 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-rose-700">
+                          Out of stock
                         </span>
                       )}
                     </div>

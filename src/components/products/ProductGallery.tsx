@@ -10,6 +10,7 @@ interface ProductGalleryProps {
   hasDiscount?: boolean;
   discount?: number;
   isFeatured?: boolean;
+  isOutOfStock?: boolean;
 }
 
 export default function ProductGallery({
@@ -18,6 +19,7 @@ export default function ProductGallery({
   hasDiscount = false,
   discount = 0,
   isFeatured = false,
+  isOutOfStock = false,
 }: ProductGalleryProps) {
   const [activeIndex, setActiveIndex] = useState(0);
 
@@ -85,7 +87,7 @@ export default function ProductGallery({
             fill
             priority
             sizes="(max-width: 1024px) 100vw, 50vw"
-            className="object-cover transition-all duration-500 ease-out"
+            className={`object-cover transition-all duration-500 ease-out ${isOutOfStock ? "opacity-75 grayscale-[25%]" : ""}`}
           />
         ) : (
           <div className="flex flex-col items-center gap-3 px-8 text-center text-[#E6C47A]">
@@ -99,14 +101,19 @@ export default function ProductGallery({
           </div>
         )}
 
-        {/* Badges (Discount & Featured) */}
+        {/* Badges (Out of Stock, Discount & Featured) */}
         <div className="absolute left-4 top-4 z-10 flex flex-col items-start gap-2">
-          {hasDiscount && (
+          {isOutOfStock && (
+            <span className={`${pill} bg-rose-700 text-white font-bold tracking-wider shadow-md`}>
+              Out of Stock
+            </span>
+          )}
+          {hasDiscount && !isOutOfStock && (
             <span className={`${pill} bg-[#D4AF69] text-[#380712]`}>
               Save {discount}%
             </span>
           )}
-          {isFeatured && (
+          {isFeatured && !isOutOfStock && (
             <span className={`${pill} bg-white/90 text-[#380712] backdrop-blur-sm`}>
               Featured
             </span>

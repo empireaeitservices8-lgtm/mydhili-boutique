@@ -67,6 +67,10 @@ export default function CartPage() {
     removeFromCart,
   } = useCart();
 
+  const hasOutOfStockItems = items.some(
+    (item) => typeof item.stock === "number" && item.stock <= 0
+  );
+
   const fontClass = `${bricolage.variable} font-[family-name:var(--font-cart)]`;
 
   /* ---------- Loading ---------- */
@@ -199,6 +203,8 @@ export default function CartPage() {
             <div className="space-y-4">
               {items.map((item) => {
                 const key = getCartItemKey(item);
+                const isOutOfStock =
+                  typeof item.stock === "number" && item.stock <= 0;
                 const lowStock =
                   typeof item.stock === "number" &&
                   item.stock > 0 &&
@@ -225,11 +231,18 @@ export default function CartPage() {
                             alt={item.name}
                             fill
                             sizes="(min-width: 640px) 144px, 112px"
-                            className="object-cover transition-transform duration-700 ease-out group-hover:scale-105"
+                            className={`object-cover transition-transform duration-700 ease-out group-hover:scale-105 ${
+                              isOutOfStock ? "opacity-60 grayscale-[40%]" : ""
+                            }`}
                           />
                         ) : (
                           <span className="flex h-full items-center justify-center text-[#E6C47A]/70">
                             <ShoppingBag size={30} strokeWidth={1.3} />
+                          </span>
+                        )}
+                        {isOutOfStock && (
+                          <span className="absolute left-2 top-2 rounded-full bg-rose-700 px-2 py-1 text-[9px] font-bold uppercase tracking-wider text-white shadow-sm">
+                            Sold out
                           </span>
                         )}
                       </Link>
@@ -276,48 +289,57 @@ export default function CartPage() {
                           </div>
                         )}
 
-                        {lowStock && (
+                        {isOutOfStock ? (
+                          <p className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-bold text-rose-700">
+                            <CircleAlert size={15} strokeWidth={2} />
+                            Out of stock — Please remove this item to checkout
+                          </p>
+                        ) : lowStock ? (
                           <p className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-[#B45309]">
                             <CircleAlert size={15} strokeWidth={1.8} />
                             Only {item.stock} left in stock
                           </p>
-                        )}
+                        ) : null}
 
                         {/* Quantity + total */}
                         <div className="mt-auto flex flex-wrap items-end justify-between gap-4 pt-4">
                           <div>
-                            <div className="flex items-center rounded-full border border-[#380712]/15 bg-[#FAF7F2] p-1">
-                              <button
-                                type="button"
-                                aria-label={`Decrease quantity of ${item.name}`}
-                                onClick={() =>
-                                  updateQuantity(key, item.quantity - 1)
-                                }
-                                className="flex h-9 w-9 items-center justify-center rounded-full text-[#380712] transition-colors hover:bg-[#380712] hover:text-[#E6C47A] active:scale-95"
-                              >
-                                <Minus size={15} strokeWidth={2} />
-                              </button>
+                            {!isOutOfStock ? (
+                              <div className="flex items-center rounded-full border border-[#380712]/15 bg-[#FAF7F2] p-1">
+                                <button
+                                  type="button"
+                                  aria-label={`Decrease quantity of ${item.name}`}
+                                  onClick={() =>
+                                    updateQuantity(key, item.quantity - 1)
+                                  }
+                                  className="flex h-9 w-9 items-center justify-center rounded-full text-[#380712] transition-colors hover:bg-[#380712] hover:text-[#E6C47A] active:scale-95"
+                                >
+                                  <Minus size={15} strokeWidth={2} />
+                                </button>
 
-                              <span
-                                className="min-w-9 text-center text-sm font-semibold tabular-nums"
-                                aria-live="polite"
-                              >
-                                {item.quantity}
-                              </span>
+                                <span
+                                  className="min-w-9 text-center text-sm font-semibold tabular-nums"
+                                  aria-live="polite"
+                                >
+                                  {item.quantity}
+                                </span>
 
-                              <button
-                                type="button"
-                                aria-label={`Increase quantity of ${item.name}`}
-                                disabled={maxReached}
-                                onClick={() =>
-                                  updateQuantity(key, item.quantity + 1)
-                                }
-                                className="flex h-9 w-9 items-center justify-center rounded-full text-[#380712] transition-colors hover:bg-[#380712] hover:text-[#E6C47A] active:scale-95 disabled:pointer-events-none disabled:opacity-30"
-                              >
-                                <Plus size={15} strokeWidth={2} />
-                              </button>
-                            </div>
-                            {maxReached && (
+                                <button
+                                  type="button"
+                                  aria-label={`Increase quantity of ${item.name}`}
+                                  disabled={maxReached}
+                                  onClick={() =>
+                                    updateQuantity(key, item.quantity + 1)
+                                  }
+                                  className="flex h-9 w-9 items-center justify-center rounded-full text-[#380712] transition-colors hover:bg-[#380712] hover:text-[#E6C47A] active:scale-95 disabled:pointer-events-none disabled:opacity-30"
+                                >
+                                  <Plus size={15} strokeWidth={2} />
+                                </button>
+                              </div>
+                            ) : (
+                              <span className="text-xs font-bold text-rose-600">Unavailable</span>
+                            )}
+                            {maxReached && !isOutOfStock && (
                               <p className="mt-1.5 pl-3 text-[11px] font-light text-stone-500">
                                 Maximum available
                               </p>
@@ -398,22 +420,33 @@ export default function CartPage() {
                   </span>
                 </div>
 
-                <Link
-                  href="/checkout"
-                  className="group relative flex h-14 w-full items-center justify-between overflow-hidden rounded-full bg-gradient-to-r from-[#E6C47A] via-[#D4AF69] to-[#B8893F] py-1.5 pl-8 pr-1.5 text-[12px] font-semibold uppercase tracking-[0.14em] text-[#380712] shadow-[0_10px_30px_rgba(212,175,105,0.25)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_14px_36px_rgba(212,175,105,0.45)]"
-                >
-                  <span
-                    aria-hidden="true"
-                    className="pointer-events-none absolute inset-y-0 -left-1/3 w-1/4 -skew-x-12 bg-white/40 opacity-0 blur-[2px] transition-all duration-700 group-hover:left-[120%] group-hover:opacity-100"
-                  />
-                  <span className="relative inline-flex items-center gap-2.5">
-                    <Lock size={16} strokeWidth={1.9} />
-                    Proceed to checkout
-                  </span>
-                  <span className="relative flex h-11 w-11 items-center justify-center rounded-full bg-[#380712] text-[#E6C47A] transition-transform duration-300 group-hover:rotate-[-45deg]">
-                    <ArrowRight size={18} strokeWidth={2} />
-                  </span>
-                </Link>
+                {hasOutOfStockItems ? (
+                  <div className="rounded-2xl border border-rose-400/40 bg-rose-950/60 p-4 text-center">
+                    <p className="flex items-center justify-center gap-1.5 text-xs font-semibold text-rose-300">
+                      <CircleAlert size={16} /> Item(s) out of stock
+                    </p>
+                    <p className="mt-1 text-[11px] leading-5 text-white/70">
+                      Please remove the out-of-stock items from your bag to proceed to checkout.
+                    </p>
+                  </div>
+                ) : (
+                  <Link
+                    href="/checkout"
+                    className="group relative flex h-14 w-full items-center justify-between overflow-hidden rounded-full bg-gradient-to-r from-[#E6C47A] via-[#D4AF69] to-[#B8893F] py-1.5 pl-8 pr-1.5 text-[12px] font-semibold uppercase tracking-[0.14em] text-[#380712] shadow-[0_10px_30px_rgba(212,175,105,0.25)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_14px_36px_rgba(212,175,105,0.45)]"
+                  >
+                    <span
+                      aria-hidden="true"
+                      className="pointer-events-none absolute inset-y-0 -left-1/3 w-1/4 -skew-x-12 bg-white/40 opacity-0 blur-[2px] transition-all duration-700 group-hover:left-[120%] group-hover:opacity-100"
+                    />
+                    <span className="relative inline-flex items-center gap-2.5">
+                      <Lock size={16} strokeWidth={1.9} />
+                      Proceed to checkout
+                    </span>
+                    <span className="relative flex h-11 w-11 items-center justify-center rounded-full bg-[#380712] text-[#E6C47A] transition-transform duration-300 group-hover:rotate-[-45deg]">
+                      <ArrowRight size={18} strokeWidth={2} />
+                    </span>
+                  </Link>
+                )}
 
                 <p className="mt-5 text-center text-xs font-light leading-6 text-white/55">
                   Shipping charges and the final order total will be confirmed

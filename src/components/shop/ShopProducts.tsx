@@ -245,15 +245,17 @@ export default function ShopProducts({ initialCategory = "all" }: ShopProductsPr
                 const categoryName = typeof product.category === "object" && product.category ? product.category.name : "";
                 const productId = product.id || product._id || product.slug;
                 const wished = isInWishlist(productId);
-                const soldOut = !!product.variants?.length && product.variants.every((v) => (v.stock ?? 0) <= 0);
-                const sizes = Array.from(new Set((product.variants || []).map((v) => v.size).filter((s): s is string => Boolean(s)))).slice(0, 4);
+                const variants = Array.isArray(product.variants) ? product.variants : [];
+                const totalStock = variants.reduce((sum, v) => sum + Number(v.stock ?? 0), 0);
+                const soldOut = variants.length > 0 && totalStock <= 0;
+                const sizes = Array.from(new Set(variants.map((v) => v.size).filter((s): s is string => Boolean(s)))).slice(0, 4);
 
                 return (
                   <article key={productId} className="group min-w-0">
                     <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#380712] to-[#6D2636] shadow-[0_10px_30px_rgba(56,7,18,0.07)] transition-all duration-500 group-hover:-translate-y-1 group-hover:shadow-[0_22px_50px_rgba(56,7,18,0.18)]">
                       <Link href={`/products/${product.slug}`} className="relative block aspect-[3/4] overflow-hidden" aria-label={`View ${product.name}`}>
                         {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={image} alt={product.name} loading="lazy" className={`absolute inset-0 h-full w-full object-cover transition-all duration-700 ease-out ${soldOut ? "opacity-70 grayscale-[40%]" : ""} ${second ? "group-hover:scale-105 group-hover:opacity-0" : "group-hover:scale-[1.07]"}`} />
+                        <img src={image} alt={product.name} loading="lazy" className={`absolute inset-0 h-full w-full object-cover transition-all duration-700 ease-out ${soldOut ? "opacity-70 grayscale-[35%]" : ""} ${second ? "group-hover:scale-105 group-hover:opacity-0" : "group-hover:scale-[1.07]"}`} />
                         {second && (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img src={second} alt="" loading="lazy" className="absolute inset-0 h-full w-full scale-105 object-cover opacity-0 transition-all duration-700 ease-out group-hover:scale-100 group-hover:opacity-100" />
@@ -262,7 +264,7 @@ export default function ShopProducts({ initialCategory = "all" }: ShopProductsPr
                       </Link>
 
                       <div className="absolute left-2.5 top-2.5 flex flex-col items-start gap-1.5 sm:left-3 sm:top-3">
-                        {soldOut && <span className={`${pill} bg-[#380712] text-white`}>Sold out</span>}
+                        {soldOut && <span className={`${pill} bg-rose-700 font-bold uppercase tracking-wider text-white shadow-md`}>Out of Stock</span>}
                         {hasDiscount && !soldOut && <span className={`${pill} bg-[#D4AF69]`}>Save {discount}%</span>}
                         {product.isFeatured && !soldOut && !hasDiscount && <span className={`${pill} bg-white/90 backdrop-blur-sm`}>Featured</span>}
                       </div>
@@ -272,20 +274,43 @@ export default function ShopProducts({ initialCategory = "all" }: ShopProductsPr
                       </button>
 
                       <div className="pointer-events-none absolute inset-x-3 bottom-3 hidden translate-y-3 opacity-0 transition-all duration-300 sm:block sm:group-hover:translate-y-0 sm:group-hover:opacity-100">
-                        <Link href={`/products/${product.slug}`} className="pointer-events-auto flex items-center justify-center gap-2 rounded-full bg-white/95 py-3 text-[11px] font-semibold uppercase tracking-[0.15em] backdrop-blur-sm transition hover:bg-[#380712] hover:text-[#E6C47A]"><ShoppingBag size={15} strokeWidth={1.7} /> View product</Link>
+                        <Link href={`/products/${product.slug}`} className={`pointer-events-auto flex items-center justify-center gap-2 rounded-full py-3 text-[11px] font-semibold uppercase tracking-[0.15em] backdrop-blur-sm transition ${soldOut ? "border border-rose-300 bg-white/95 text-rose-700 hover:bg-rose-700 hover:text-white" : "bg-white/95 text-[#380712] hover:bg-[#380712] hover:text-[#E6C47A]"}`}><ShoppingBag size={15} strokeWidth={1.7} /> {soldOut ? "Out of stock · View" : "View product"}</Link>
                       </div>
                     </div>
 
                     <div className="px-1 pt-3.5 sm:pt-4">
                       {categoryName && <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#9A6B35]">{categoryName}</p>}
                       <Link href={`/products/${product.slug}`} className="line-clamp-2 block text-sm font-medium leading-snug tracking-[-0.015em] transition-colors hover:text-[#9A6B35] sm:text-base">{product.name}</Link>
-                      <div className="mt-2 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                      <div className="mt-2 flex flex-wrap items-baseline gap-x-2 gap-y-1">
                         <span className="text-base font-semibold sm:text-lg">{formatPrice(product.price)}</span>
                         {hasDiscount && <span className="text-xs text-stone-400 line-through sm:text-sm">{formatPrice(product.compareAtPrice!)}</span>}
+                        {soldOut && (
+                          <span className="rounded-full border border-rose-200 bg-rose-50 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-rose-700">
+                            Out of stock
+                          </span>
+                        )}
                       </div>
                       {sizes.length > 0 && (
                         <div className="mt-2 flex flex-wrap gap-1.5">
-                          {sizes.map((s) => <span key={s} className="rounded-full border border-[#E9DFD2] bg-[#FAF7F2] px-2 py-0.5 text-[10px] font-medium text-stone-600">{s}</span>)}
+                          {sizes.map((s) => {
+                            const sizeStock = variants
+                              .filter((v) => v.size === s)
+                              .reduce((sum, v) => sum + Number(v.stock ?? 0), 0);
+                            const isSizeOut = variants.some((v) => v.size === s) && sizeStock <= 0;
+                            return (
+                              <span
+                                key={s}
+                                className={`rounded-full border px-2 py-0.5 text-[10px] font-medium transition ${
+                                  isSizeOut
+                                    ? "border-rose-200 bg-rose-50/70 text-stone-400 line-through"
+                                    : "border-[#E9DFD2] bg-[#FAF7F2] text-stone-600"
+                                }`}
+                                title={isSizeOut ? `${s} (Out of stock)` : `${s} (In stock)`}
+                              >
+                                {s}
+                              </span>
+                            );
+                          })}
                         </div>
                       )}
                     </div>

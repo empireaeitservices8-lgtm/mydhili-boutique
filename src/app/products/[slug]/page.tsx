@@ -171,7 +171,8 @@ export default async function ProductDetailPage({
   const images = product.images?.filter(Boolean) ?? [];
   const imageUrl = images[0] ?? "";
   const variants = product.variants ?? [];
-  const inStock = variants.length ? variants.some((v) => (v.stock ?? 0) > 0) : true;
+  const totalStock = variants.reduce((sum, v) => sum + Number(v.stock ?? 0), 0);
+  const inStock = variants.length > 0 ? totalStock > 0 : true;
   const hasDiscount = !!product.compareAtPrice && product.compareAtPrice > product.price;
   const discount = hasDiscount
     ? Math.round(((product.compareAtPrice! - product.price) / product.compareAtPrice!) * 100)
@@ -198,6 +199,7 @@ export default async function ProductDetailPage({
             hasDiscount={hasDiscount}
             discount={discount}
             isFeatured={product.isFeatured}
+            isOutOfStock={!inStock}
           />
 
           {/* Information */}
@@ -218,9 +220,9 @@ export default async function ProductDetailPage({
             <div className="mt-5 flex flex-wrap items-center gap-x-3 gap-y-2">
               <span className="text-3xl font-semibold tracking-[-0.03em]">{formatPrice(product.price)}</span>
               {hasDiscount && <span className="text-base text-stone-400 line-through">{formatPrice(product.compareAtPrice!)}</span>}
-              <span className={`inline-flex items-center gap-1.5 ${pill} ${inStock ? "bg-[#EAF4EC] text-[#2F6B3C]" : "bg-[#FDECEC] text-[#8B1E2D]"}`}>
+              <span className={`inline-flex items-center gap-1.5 ${pill} ${inStock ? "bg-[#EAF4EC] text-[#2F6B3C] font-semibold" : "bg-rose-100 text-rose-700 font-bold border border-rose-200"}`}>
                 {inStock ? <CircleCheck size={13} /> : <CircleX size={13} />}
-                {inStock ? "In stock" : "Sold out"}
+                {inStock ? "In stock" : "Out of stock"}
               </span>
             </div>
 

@@ -1,8 +1,7 @@
-
 "use client";
 
 import { useMemo, useState } from "react";
-import { ShoppingBag, Minus, Plus, Check } from "lucide-react";
+import { ShoppingBag, Minus, Plus, Check, CircleAlert, CircleX } from "lucide-react";
 import { useCart } from "@/context/CartContext";
 
 interface ProductVariant {
@@ -31,48 +30,81 @@ export default function ProductPurchaseOptions({
 }: ProductPurchaseOptionsProps) {
   const { addToCart, isLoaded } = useCart();
 
-  const availableVariants = useMemo(
-    () => variants.filter((variant) => (variant.stock ?? 0) > 0),
+  const totalStock = useMemo(
+    () => variants.reduce((sum, v) => sum + Number(v.stock ?? 0), 0),
+    [variants]
+  );
+  const isTotalOutOfStock = variants.length > 0 && totalStock <= 0;
+
+  // Include ALL sizes & colors so customers can see what exists
+  const allSizes = useMemo(
+    () => [...new Set(variants.map((v) => v.size).filter((s): s is string => Boolean(s)))],
     [variants]
   );
 
-  const sizes = useMemo(
-    () => [...new Set(availableVariants.map((v) => v.size).filter(Boolean))] as string[],
-    [availableVariants]
+  const allColors = useMemo(
+    () => [...new Set(variants.map((v) => v.color).filter((c): c is string => Boolean(c)))],
+    [variants]
   );
 
-  const colors = useMemo(
-    () => [...new Set(availableVariants.map((v) => v.color).filter(Boolean))] as string[],
-    [availableVariants]
-  );
+  // Default to the first in-stock variant if available
+  const defaultVariant = useMemo(() => {
+    const inStock = variants.find((v) => Number(v.stock ?? 0) > 0);
+    return inStock || variants[0];
+  }, [variants]);
 
-  const [selectedSize, setSelectedSize] = useState(
-    availableVariants[0]?.size ?? ""
-  );
-  const [selectedColor, setSelectedColor] = useState(
-    availableVariants[0]?.color ?? ""
-  );
+  const [selectedSize, setSelectedSize] = useState(defaultVariant?.size ?? "");
+  const [selectedColor, setSelectedColor] = useState(defaultVariant?.color ?? "");
   const [quantity, setQuantity] = useState(1);
   const [added, setAdded] = useState(false);
 
   const selectedVariant = useMemo(() => {
     if (!variants.length) return undefined;
 
-    return availableVariants.find(
-      (variant) =>
-        (variant.size ?? "") === selectedSize &&
-        (variant.color ?? "") === selectedColor
+    return (
+      variants.find(
+        (variant) =>
+          (variant.size ?? "") === selectedSize &&
+          (variant.color ?? "") === selectedColor
+      ) ||
+      variants.find((variant) => (variant.size ?? "") === selectedSize) ||
+      variants[0]
     );
-  }, [variants, availableVariants, selectedSize, selectedColor]);
+  }, [variants, selectedSize, selectedColor]);
 
-  const stock = variants.length
-    ? selectedVariant?.stock ?? 0
+  const currentStock = variants.length
+    ? Number(selectedVariant?.stock ?? 0)
     : undefined;
+
+  const isCurrentVariantOutOfStock =
+    variants.length > 0 && (currentStock === undefined || currentStock <= 0);
+
+  function isSizeInStock(size: string) {
+    return variants.some(
+      (v) => (v.size ?? "") === size && Number(v.stock ?? 0) > 0
+    );
+  }
+
+  function isColorInStock(color: string, size?: string) {
+    if (size) {
+      return variants.some(
+        (v) =>
+          (v.color ?? "") === color &&
+          (v.size ?? "") === size &&
+          Number(v.stock ?? 0) > 0
+      );
+    }
+    return variants.some(
+      (v) => (v.color ?? "") === color && Number(v.stock ?? 0) > 0
+    );
+  }
 
   const canAdd =
     isLoaded &&
+    !isTotalOutOfStock &&
+    !isCurrentVariantOutOfStock &&
     (variants.length === 0 || Boolean(selectedVariant)) &&
-    (stock === undefined || stock > 0);
+    (currentStock === undefined || currentStock > 0);
 
   function handleAddToCart() {
     if (!canAdd) return;
@@ -86,7 +118,7 @@ export default function ProductPurchaseOptions({
       quantity,
       size: selectedSize || undefined,
       color: selectedColor || undefined,
-      stock,
+      stock: currentStock,
     });
 
     setAdded(true);
@@ -96,18 +128,23 @@ export default function ProductPurchaseOptions({
   function changeSize(size: string) {
     setSelectedSize(size);
 
-    // If the current colour is unavailable in the new size,
-    // select the first available matching colour.
-    const matchingVariants = availableVariants.filter(
+    const matchingVariants = variants.filter(
       (variant) => (variant.size ?? "") === size
     );
 
-    if (
-      !matchingVariants.some(
-        (variant) => (variant.color ?? "") === selectedColor
-      )
-    ) {
-      setSelectedColor(matchingVariants[0]?.color ?? "");
+    const inStockMatch = matchingVariants.find(
+      (v) => (v.color ?? "") === selectedColor && Number(v.stock ?? 0) > 0
+    );
+
+    if (!inStockMatch) {
+      const firstInStock = matchingVariants.find(
+        (v) => Number(v.stock ?? 0) > 0
+      );
+      if (firstInStock) {
+        setSelectedColor(firstInStock.color ?? "");
+      } else if (matchingVariants[0]) {
+        setSelectedColor(matchingVariants[0].color ?? "");
+      }
     }
 
     setQuantity(1);
@@ -116,7 +153,7 @@ export default function ProductPurchaseOptions({
   function changeColor(color: string) {
     setSelectedColor(color);
 
-    const matchingVariants = availableVariants.filter(
+    const matchingVariants = variants.filter(
       (variant) => (variant.color ?? "") === color
     );
 
@@ -134,48 +171,68 @@ export default function ProductPurchaseOptions({
       );
     }
 
-    if (
-      !matchingVariants.some(
-        (variant) => (variant.size ?? "") === selectedSize
-      )
-    ) {
-      setSelectedSize(matchingVariants[0]?.size ?? "");
+    const inStockMatch = matchingVariants.find(
+      (v) => (v.size ?? "") === selectedSize && Number(v.stock ?? 0) > 0
+    );
+
+    if (!inStockMatch) {
+      const firstInStock = matchingVariants.find(
+        (v) => Number(v.stock ?? 0) > 0
+      );
+      if (firstInStock) {
+        setSelectedSize(firstInStock.size ?? "");
+      } else if (matchingVariants[0]) {
+        setSelectedSize(matchingVariants[0].size ?? "");
+      }
     }
 
     setQuantity(1);
   }
 
-  const maxQuantity = stock ?? 99;
+  const maxQuantity = currentStock ?? 99;
 
   return (
     <div className="mt-8 space-y-7">
       {/* Size selection */}
-      {sizes.length > 0 && (
+      {allSizes.length > 0 && (
         <div>
           <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-sm font-semibold">Select size</h2>
-            <span className="text-xs text-neutral-500">
+            <h2 className="text-sm font-semibold text-[#380712]">Select size</h2>
+            <span className="text-xs font-medium text-neutral-500">
               {selectedSize || "Choose a size"}
             </span>
           </div>
 
-          <div className="flex flex-wrap gap-2">
-            {sizes.map((size) => {
+          <div className="flex flex-wrap gap-2.5">
+            {allSizes.map((size) => {
               const isSelected = selectedSize === size;
+              const inStock = isSizeInStock(size);
 
               return (
                 <button
                   key={size}
                   type="button"
                   onClick={() => changeSize(size)}
-                  className={`min-w-12 border px-4 py-2.5 text-sm transition ${
+                  className={`group relative min-w-14 rounded-lg border px-4 py-2.5 text-xs font-semibold uppercase tracking-wider transition ${
                     isSelected
-                      ? "border-[#380712] bg-[#380712] text-white"
-                      : "border-[#D8C9B7] bg-white text-[#380712] hover:border-[#9A6B35]"
+                      ? inStock
+                        ? "border-[#380712] bg-[#380712] text-white shadow-sm"
+                        : "border-rose-600 bg-rose-600 text-white shadow-sm"
+                      : inStock
+                      ? "border-[#D8C9B7] bg-white text-[#380712] hover:border-[#9A6B35] hover:bg-[#FAF7F2]"
+                      : "border-rose-200 bg-rose-50/60 text-stone-400 hover:border-rose-300"
                   }`}
                   aria-pressed={isSelected}
+                  title={inStock ? `${size} (In stock)` : `${size} (Out of stock)`}
                 >
-                  {size}
+                  <span className={!inStock ? "line-through opacity-75" : ""}>
+                    {size}
+                  </span>
+                  {!inStock && (
+                    <span className="ml-1.5 text-[9px] font-bold text-rose-600 no-underline">
+                      (Sold out)
+                    </span>
+                  )}
                 </button>
               );
             })}
@@ -184,38 +241,41 @@ export default function ProductPurchaseOptions({
       )}
 
       {/* Colour selection */}
-      {colors.length > 0 && (
+      {allColors.length > 0 && (
         <div>
           <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-sm font-semibold">Select colour</h2>
-            <span className="text-xs text-neutral-500">
+            <h2 className="text-sm font-semibold text-[#380712]">Select colour</h2>
+            <span className="text-xs font-medium text-neutral-500">
               {selectedColor || "Choose a colour"}
             </span>
           </div>
 
-          <div className="flex flex-wrap gap-2">
-            {colors.map((color) => {
+          <div className="flex flex-wrap gap-2.5">
+            {allColors.map((color) => {
               const isSelected = selectedColor === color;
-              const isAvailable = availableVariants.some(
-                (variant) =>
-                  (variant.color ?? "") === color &&
-                  (variant.size ?? "") === selectedSize
-              );
+              const inStock = isColorInStock(color, selectedSize);
 
               return (
                 <button
                   key={color}
                   type="button"
                   onClick={() => changeColor(color)}
-                  disabled={!isAvailable}
-                  className={`border px-4 py-2.5 text-sm transition ${
+                  className={`rounded-lg border px-4 py-2.5 text-xs font-medium transition ${
                     isSelected
-                      ? "border-[#380712] bg-[#380712] text-white"
-                      : "border-[#D8C9B7] bg-white text-[#380712] hover:border-[#9A6B35]"
-                  } disabled:cursor-not-allowed disabled:opacity-35`}
+                      ? inStock
+                        ? "border-[#380712] bg-[#380712] text-white shadow-sm"
+                        : "border-rose-600 bg-rose-600 text-white shadow-sm"
+                      : inStock
+                      ? "border-[#D8C9B7] bg-white text-[#380712] hover:border-[#9A6B35] hover:bg-[#FAF7F2]"
+                      : "border-stone-200 bg-stone-100 text-stone-400 line-through"
+                  }`}
                   aria-pressed={isSelected}
+                  title={inStock ? `${color} (In stock)` : `${color} (Out of stock)`}
                 >
                   {color}
+                  {!inStock && (
+                    <span className="ml-1 text-[10px] text-rose-500 opacity-80">(Sold out)</span>
+                  )}
                 </button>
               );
             })}
@@ -223,69 +283,103 @@ export default function ProductPurchaseOptions({
         </div>
       )}
 
-      {/* Stock status */}
+      {/* Stock status indicator */}
       <div>
         {variants.length === 0 ? (
-          <p className="flex items-center gap-2 text-sm text-green-700">
-            <span className="h-2 w-2 rounded-full bg-green-600" />
+          <p className="flex items-center gap-2 text-sm font-medium text-emerald-700">
+            <span className="h-2 w-2 rounded-full bg-emerald-600" />
             Available for purchase
           </p>
-        ) : selectedVariant ? (
-          <p className="flex items-center gap-2 text-sm text-green-700">
-            <span className="h-2 w-2 rounded-full bg-green-600" />
-            {stock} available in stock
+        ) : isTotalOutOfStock ? (
+          <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-rose-800">
+            <p className="flex items-center gap-2 text-sm font-bold text-rose-700">
+              <CircleAlert size={17} /> Currently Out of Stock
+            </p>
+            <p className="mt-1 text-xs font-light leading-5 text-rose-600">
+              All sizes and colors of this piece are currently sold out. We will restock soon!
+            </p>
+          </div>
+        ) : isCurrentVariantOutOfStock ? (
+          <div className="rounded-xl border border-rose-200 bg-rose-50 p-3.5 text-rose-800">
+            <p className="flex items-center gap-2 text-sm font-bold text-rose-700">
+              <CircleX size={16} />
+              {selectedSize ? `Size ${selectedSize}` : "This option"} is Out of Stock
+            </p>
+            <p className="mt-0.5 text-xs text-rose-600">
+              Please choose another available size or colour above.
+            </p>
+          </div>
+        ) : currentStock !== undefined && currentStock > 0 ? (
+          <p className="flex items-center gap-2 text-sm font-medium text-emerald-700">
+            <span className="h-2 w-2 rounded-full bg-emerald-600" />
+            {currentStock <= 5 ? (
+              <span className="font-semibold text-amber-700">
+                Only {currentStock} left in stock - order soon
+              </span>
+            ) : (
+              <span>{currentStock} in stock and ready to dispatch</span>
+            )}
           </p>
         ) : (
-          <p className="text-sm text-red-700">
-            {availableVariants.length === 0
-              ? "Currently out of stock"
-              : "This size and colour combination is unavailable"}
+          <p className="text-sm font-medium text-rose-700">
+            This combination is currently unavailable
           </p>
         )}
       </div>
 
-      {/* Quantity */}
-      <div>
-        <h2 className="mb-3 text-sm font-semibold">Quantity</h2>
+      {/* Quantity - only shown when in stock */}
+      {!isTotalOutOfStock && !isCurrentVariantOutOfStock && (
+        <div>
+          <h2 className="mb-3 text-sm font-semibold text-[#380712]">Quantity</h2>
 
-        <div className="inline-flex h-12 items-center border border-[#D8C9B7] bg-white">
-          <button
-            type="button"
-            onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-            disabled={quantity <= 1}
-            className="flex h-full w-12 items-center justify-center text-[#380712] transition hover:bg-[#FAF7F2] disabled:opacity-30"
-            aria-label="Decrease quantity"
-          >
-            <Minus size={15} />
-          </button>
+          <div className="inline-flex h-12 items-center rounded-lg border border-[#D8C9B7] bg-white">
+            <button
+              type="button"
+              onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+              disabled={quantity <= 1}
+              className="flex h-full w-12 items-center justify-center text-[#380712] transition hover:bg-[#FAF7F2] disabled:opacity-30"
+              aria-label="Decrease quantity"
+            >
+              <Minus size={15} />
+            </button>
 
-          <span className="min-w-10 text-center text-sm">{quantity}</span>
+            <span className="min-w-10 text-center text-sm font-semibold tabular-nums">{quantity}</span>
 
-          <button
-            type="button"
-            onClick={() =>
-              setQuantity((q) => Math.min(maxQuantity, q + 1))
-            }
-            disabled={quantity >= maxQuantity}
-            className="flex h-full w-12 items-center justify-center text-[#380712] transition hover:bg-[#FAF7F2] disabled:opacity-30"
-            aria-label="Increase quantity"
-          >
-            <Plus size={15} />
-          </button>
+            <button
+              type="button"
+              onClick={() =>
+                setQuantity((q) => Math.min(maxQuantity, q + 1))
+              }
+              disabled={quantity >= maxQuantity}
+              className="flex h-full w-12 items-center justify-center text-[#380712] transition hover:bg-[#FAF7F2] disabled:opacity-30"
+              aria-label="Increase quantity"
+            >
+              <Plus size={15} />
+            </button>
+          </div>
         </div>
-      </div>
+      )}
 
-      {/* Add to cart */}
+      {/* Add to cart / Out of stock button */}
       <button
         type="button"
         onClick={handleAddToCart}
         disabled={!canAdd}
-        className="flex min-h-14 w-full items-center justify-center gap-3 bg-[#380712] px-6 py-4 text-sm font-medium uppercase tracking-[0.15em] text-white transition hover:bg-[#520D1D] disabled:cursor-not-allowed disabled:opacity-40"
+        className={`flex min-h-14 w-full items-center justify-center gap-3 rounded-xl px-6 py-4 text-sm font-bold uppercase tracking-[0.15em] transition ${
+          isTotalOutOfStock || isCurrentVariantOutOfStock
+            ? "cursor-not-allowed border border-stone-200 bg-stone-200 text-stone-500 shadow-none"
+            : "bg-[#380712] text-white shadow-md hover:bg-[#520D1D] active:scale-[0.99]"
+        }`}
       >
-        {added ? (
+        {isTotalOutOfStock || isCurrentVariantOutOfStock ? (
+          <>
+            <CircleAlert className="h-5 w-5 text-stone-400" />
+            Out of Stock
+          </>
+        ) : added ? (
           <>
             <Check className="h-5 w-5" />
-            Added to bag
+            Added to shopping bag
           </>
         ) : (
           <>
