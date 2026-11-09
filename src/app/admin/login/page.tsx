@@ -20,17 +20,13 @@ export default function AdminLoginPage() {
   const [error, setError] = useState("");
   const [currentYear, setCurrentYear] = useState<number | null>(null);
 
-  // Initialize saved email preference and year
+  // Initialize year
   useEffect(() => {
     setCurrentYear(new Date().getFullYear());
     try {
-      const savedEmail = localStorage.getItem(REMEMBER_EMAIL_KEY);
-      if (savedEmail) {
-        setEmail(savedEmail);
-        setRememberEmail(true);
-      }
+      localStorage.removeItem(REMEMBER_EMAIL_KEY);
     } catch {
-      // Ignore localStorage read errors in restricted contexts
+      // Ignore localStorage errors
     }
   }, []);
 
@@ -162,11 +158,11 @@ export default function AdminLoginPage() {
                 id="email"
                 name="email"
                 type="email"
-                autoComplete="email"
+                autoComplete="off"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="admin@mydhili.com"
+                placeholder=""
                 className="h-11 w-full rounded-lg border border-stone-200 bg-white px-3.5 text-sm text-[#380712] outline-none transition placeholder:text-stone-400 focus:border-[#380712] focus:ring-1 focus:ring-[#380712]"
               />
             </div>

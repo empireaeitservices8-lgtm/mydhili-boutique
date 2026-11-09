@@ -173,9 +173,6 @@ export default async function AdminDashboardPage() {
             <h1 className="font-serif text-3xl font-bold tracking-tight text-[#380712] sm:text-4xl">
               Boutique Overview
             </h1>
-            <p className="mt-1 text-xs text-stone-500 sm:text-sm">
-              Signed in as <span className="font-semibold text-stone-700">{session.email}</span> · {new Date().toLocaleDateString("en-IN", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}
-            </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
