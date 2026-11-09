@@ -54,19 +54,34 @@ export default function AdminProductsPage() {
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [justSaved, setJustSaved] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [productToDelete, setProductToDelete] = useState<{
     id: string;
     name: string;
   } | null>(null);
 
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      if (params.has("saved")) {
+        setJustSaved(true);
+        window.history.replaceState({}, "", "/admin/products");
+      }
+    }
+  }, []);
+
   const loadProducts = useCallback(async () => {
     setLoading(true);
     setError("");
 
     try {
-      const response = await fetch("/api/admin/products", {
+      const response = await fetch(`/api/admin/products?t=${Date.now()}`, {
         cache: "no-store",
+        headers: {
+          "Cache-Control": "no-cache",
+          Pragma: "no-cache",
+        },
       });
 
       const data = await response.json();
@@ -302,6 +317,33 @@ export default function AdminProductsPage() {
           </div>
         </section>
 
+        {/* Just Saved Notification */}
+        {justSaved && (
+          <div
+            role="status"
+            className="flex items-center justify-between rounded-2xl border border-emerald-300 bg-emerald-50 px-5 py-4 text-emerald-900 shadow-sm"
+          >
+            <div className="flex items-center gap-3">
+              <CheckCircle2 size={20} className="shrink-0 text-emerald-600" />
+              <div>
+                <p className="text-sm font-bold">
+                  Product successfully saved and added to catalog!
+                </p>
+                <p className="text-xs text-emerald-700">
+                  Your new piece is now displayed below in the active product catalog.
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setJustSaved(false)}
+              className="text-xs font-semibold text-emerald-700 underline underline-offset-2 hover:text-emerald-900"
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
+
         {/* Error notification */}
         {error && (
           <div
@@ -315,9 +357,19 @@ export default function AdminProductsPage() {
         {/* Main Products Table */}
         <section className="overflow-hidden rounded-3xl border border-[#EDE4D9] bg-white shadow-sm">
           <div className="flex items-center justify-between border-b border-[#EEE7DE] px-6 py-4">
-            <h2 className="font-serif text-lg font-bold text-[#380712]">
-              Active Catalog
-            </h2>
+            <div className="flex items-center gap-2.5">
+              <h2 className="font-serif text-lg font-bold text-[#380712]">
+                Active Catalog
+              </h2>
+              <button
+                type="button"
+                onClick={() => loadProducts()}
+                title="Refresh catalog list"
+                className="flex h-8 w-8 items-center justify-center rounded-lg border border-[#E9DFD2] bg-white text-stone-500 transition hover:border-[#D4AF69] hover:text-[#380712]"
+              >
+                <RefreshCw size={14} className={loading ? "animate-spin text-[#9A6B35]" : ""} />
+              </button>
+            </div>
 
             <span className="rounded-full bg-[#FAF7F2] px-3 py-1 text-xs font-semibold text-stone-600">
               Showing {filteredProducts.length} of {products.length} items

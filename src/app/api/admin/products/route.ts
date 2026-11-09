@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAdminSession } from "@/lib/auth";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 function createSlug(value: string) {
   return value
     .toLowerCase()
@@ -15,13 +18,19 @@ async function authorizeAdmin() {
   return Boolean(session);
 }
 
+const noCacheHeaders = {
+  "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+  Pragma: "no-cache",
+  Expires: "0",
+};
+
 // GET: Fetch products and categories
 export async function GET() {
   try {
     if (!(await authorizeAdmin())) {
       return NextResponse.json(
         { success: false, message: "Admin authentication required." },
-        { status: 401 }
+        { status: 401, headers: noCacheHeaders }
       );
     }
 
@@ -54,22 +63,32 @@ export async function GET() {
       variants: p.variants,
       isFeatured: p.isFeatured,
       isActive: p.isActive,
-      category: p.category ? { _id: p.category.id, id: p.category.id, name: p.category.name } : null,
+      category: p.category
+        ? { _id: p.category.id, id: p.category.id, name: p.category.name }
+        : null,
       createdAt: p.createdAt,
       updatedAt: p.updatedAt,
     }));
 
-    return NextResponse.json({
-      success: true,
-      products,
-      categories: categories.map((c: any) => ({ _id: c.id, id: c.id, name: c.name, isActive: c.isActive })),
-    });
+    return NextResponse.json(
+      {
+        success: true,
+        products,
+        categories: categories.map((c: any) => ({
+          _id: c.id,
+          id: c.id,
+          name: c.name,
+          isActive: c.isActive,
+        })),
+      },
+      { headers: noCacheHeaders }
+    );
   } catch (error) {
     console.error("Fetch products error:", error);
 
     return NextResponse.json(
       { success: false, message: "Unable to fetch products." },
-      { status: 500 }
+      { status: 500, headers: noCacheHeaders }
     );
   }
 }
@@ -80,22 +99,55 @@ export async function POST(request: NextRequest) {
     if (!(await authorizeAdmin())) {
       return NextResponse.json(
         { success: false, message: "Admin authentication required." },
-        { status: 401 }
+        { status: 401, headers: noCacheHeaders }
       );
     }
 
     const body = await request.json();
 
     const name = String(body.name ?? "").trim();
-    const description = String(body.description ?? "").trim();
-    const shortDescription = String(body.shortDescription ?? "").trim();
-    const categoryId = String(body.category ?? "").trim();
+    if (!name) {
+      return NextResponse.json(
+        { success: false, message: "Product name is required." },
+        { status: 400, headers: noCacheHeaders }
+      );
+    }
+
     const price = Number(body.price);
+    if (!Number.isFinite(price) || price < 0) {
+      return NextResponse.json(
+        { success: false, message: "Please enter a valid selling price." },
+        { status: 400, headers: noCacheHeaders }
+      );
+    }
+
+    const shortDescription = String(body.shortDescription ?? "").trim();
+    const rawDescription = String(body.description ?? "").trim();
+    const description = rawDescription || shortDescription || name;
 
     const compareAtPrice =
       body.compareAtPrice === "" || body.compareAtPrice == null
         ? null
         : Number(body.compareAtPrice);
+
+    let categoryId: string | null = String(body.category ?? "").trim() || null;
+    if (categoryId) {
+      const cat = await prisma.category.findUnique({
+        where: { id: categoryId },
+      });
+      if (!cat) {
+        // Fallback to first active category if provided ID doesn't exist
+        const defaultCat = await prisma.category.findFirst({
+          where: { isActive: true },
+        });
+        categoryId = defaultCat ? defaultCat.id : null;
+      }
+    } else {
+      const defaultCat = await prisma.category.findFirst({
+        where: { isActive: true },
+      });
+      categoryId = defaultCat ? defaultCat.id : null;
+    }
 
     const images = Array.isArray(body.images)
       ? body.images
@@ -103,126 +155,67 @@ export async function POST(request: NextRequest) {
           .filter(Boolean)
       : [];
 
-    // Ignore completely empty variant rows and expand comma-separated sizes automatically
+    // Parse variants safely
     const submittedVariants = Array.isArray(body.variants)
       ? body.variants
       : [];
 
-    const variants: { sku: string; size: string; color: string; stock: number }[] = [];
+    const variants: {
+      sku: string;
+      size: string;
+      color: string;
+      stock: number;
+    }[] = [];
 
     for (const variant of submittedVariants) {
       const rawSku = String(variant?.sku ?? "").trim();
       const rawSize = String(variant?.size ?? "").trim();
-      const color = String(variant?.color ?? "").trim();
+      const rawColor = String(variant?.color ?? "").trim();
       const rawStock = Number(variant?.stock ?? 0);
 
-      if (!rawSku && !rawSize && !color && (variant?.stock === "" || variant?.stock == null)) {
-        continue;
-      }
-
-      // If the admin typed comma-separated sizes like "S, M, L", split them cleanly
+      // If comma-separated sizes like "S, M, L", split them
       const sizeList = rawSize.includes(",")
         ? rawSize.split(",").map((s) => s.trim()).filter(Boolean)
-        : [rawSize];
+        : [rawSize || "Free Size"];
 
-      const perStock = sizeList.length > 1
-        ? Math.max(0, Math.floor(rawStock / sizeList.length))
-        : rawStock;
+      const perStock =
+        sizeList.length > 1
+          ? Math.max(0, Math.floor(rawStock / sizeList.length))
+          : Math.max(0, rawStock);
 
       sizeList.forEach((sz, idx) => {
-        const sku = rawSku && sizeList.length === 1
-          ? rawSku
-          : `${createSlug(name || "VAR")
-              .toUpperCase()
-              .slice(0, 8)}-${sz.toUpperCase().replace(/\s+/g, "")}-${(color || "STD")
-              .toUpperCase()
-              .replace(/\s+/g, "")}`;
+        const sku =
+          rawSku && sizeList.length === 1
+            ? rawSku
+            : `${createSlug(name || "VAR")
+                .toUpperCase()
+                .slice(0, 8)}-${sz.toUpperCase().replace(/\s+/g, "")}-${(rawColor || "STD")
+                .toUpperCase()
+                .replace(/\s+/g, "")}`;
 
         variants.push({
           sku,
-          size: sz,
-          color: color || "Standard",
-          stock: idx === 0 && sizeList.length > 1 ? rawStock - perStock * (sizeList.length - 1) : perStock,
+          size: sz || "Free Size",
+          color: rawColor || "Standard",
+          stock:
+            idx === 0 && sizeList.length > 1
+              ? Math.max(0, rawStock - perStock * (sizeList.length - 1))
+              : perStock,
         });
       });
     }
 
-    if (!name || !description || !categoryId) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Product name, description, and category are required.",
-        },
-        { status: 400 }
-      );
+    // If no variants were configured, provide a default in-stock variant
+    if (variants.length === 0) {
+      variants.push({
+        sku: `${createSlug(name).toUpperCase().slice(0, 8)}-STD`,
+        size: "Free Size",
+        color: "Standard",
+        stock: 10,
+      });
     }
 
-    if (!Number.isFinite(price) || price < 0) {
-      return NextResponse.json(
-        { success: false, message: "Please enter a valid selling price." },
-        { status: 400 }
-      );
-    }
-
-    if (
-      compareAtPrice !== null &&
-      (!Number.isFinite(compareAtPrice) || compareAtPrice < price)
-    ) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Compare-at price must be greater than or equal to the selling price.",
-        },
-        { status: 400 }
-      );
-    }
-
-    const invalidVariant = variants.some(
-      (variant: {
-        sku: string;
-        size: string;
-        color: string;
-        stock: number;
-      }) =>
-        !variant.size ||
-        !variant.color ||
-        !Number.isInteger(variant.stock) ||
-        variant.stock < 0
-    );
-
-    if (invalidVariant) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Each variant needs a size, colour, and valid non-negative stock quantity.",
-        },
-        { status: 400 }
-      );
-    }
-
-    const categoryExists = await prisma.category.findFirst({
-      where: {
-        id: categoryId,
-        isActive: true,
-      },
-    });
-
-    if (!categoryExists) {
-      return NextResponse.json(
-        { success: false, message: "Selected active category was not found." },
-        { status: 404 }
-      );
-    }
-
-    const baseSlug = createSlug(name);
-
-    if (!baseSlug) {
-      return NextResponse.json(
-        { success: false, message: "Please enter a valid product name." },
-        { status: 400 }
-      );
-    }
-
+    const baseSlug = createSlug(name) || `prod-${Date.now()}`;
     let slug = baseSlug;
     let suffix = 1;
 
@@ -236,10 +229,13 @@ export async function POST(request: NextRequest) {
         name,
         slug,
         description,
-        shortDescription,
+        shortDescription: shortDescription || null,
         categoryId: categoryId,
         price,
-        compareAtPrice,
+        compareAtPrice:
+          compareAtPrice !== null && compareAtPrice >= price
+            ? compareAtPrice
+            : null,
         images,
         variants,
         isFeatured: Boolean(body.isFeatured),
@@ -264,24 +260,36 @@ export async function POST(request: NextRequest) {
           description: product.description,
           shortDescription: product.shortDescription,
           price: Number(product.price),
-          compareAtPrice: product.compareAtPrice ? Number(product.compareAtPrice) : null,
+          compareAtPrice: product.compareAtPrice
+            ? Number(product.compareAtPrice)
+            : null,
           images: product.images,
           variants: product.variants,
           isFeatured: product.isFeatured,
           isActive: product.isActive,
-          category: product.category ? { _id: product.category.id, id: product.category.id, name: product.category.name } : null,
+          category: product.category
+            ? {
+                _id: product.category.id,
+                id: product.category.id,
+                name: product.category.name,
+              }
+            : null,
           createdAt: product.createdAt,
           updatedAt: product.updatedAt,
         },
       },
-      { status: 201 }
+      { status: 201, headers: noCacheHeaders }
     );
   } catch (error) {
     console.error("Create product error:", error);
 
     return NextResponse.json(
-      { success: false, message: "Unable to create product." },
-      { status: 500 }
+      {
+        success: false,
+        message:
+          error instanceof Error ? error.message : "Unable to create product.",
+      },
+      { status: 500, headers: noCacheHeaders }
     );
   }
 }

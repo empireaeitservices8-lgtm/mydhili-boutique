@@ -2,15 +2,16 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
+  ArrowRight,
+  CheckCircle2,
   ImagePlus,
   Loader2,
   Plus,
+  RotateCcw,
   Trash2,
-  ExternalLink,
 } from "lucide-react";
 import ImageUpload from "@/components/admin/ImageUpload";
 
@@ -26,6 +27,21 @@ type Variant = {
   stock: string;
 };
 
+const initialForm = {
+  name: "",
+  shortDescription: "",
+  description: "",
+  category: "",
+  price: "",
+  compareAtPrice: "",
+  isFeatured: false,
+  isActive: true,
+};
+
+const initialVariants: Variant[] = [
+  { sku: "", size: "Free Size", color: "Standard", stock: "10" },
+];
+
 export default function NewProductPage() {
   const router = useRouter();
 
@@ -33,28 +49,19 @@ export default function NewProductPage() {
   const [loadingCategories, setLoadingCategories] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
   const [imageInput, setImageInput] = useState("");
 
-  const [form, setForm] = useState({
-    name: "",
-    shortDescription: "",
-    description: "",
-    category: "",
-    price: "",
-    compareAtPrice: "",
-    isFeatured: false,
-    isActive: true,
-  });
-
+  const [form, setForm] = useState(initialForm);
   const [images, setImages] = useState<string[]>([]);
-  const [variants, setVariants] = useState<Variant[]>([
-    { sku: "", size: "", color: "", stock: "0" },
-  ]);
+  const [variants, setVariants] = useState<Variant[]>(initialVariants);
 
   useEffect(() => {
     async function loadCategories() {
       try {
-        const response = await fetch("/api/admin/products");
+        const response = await fetch(`/api/admin/products?t=${Date.now()}`, {
+          cache: "no-store",
+        });
         const data = await response.json();
 
         if (!response.ok || !data.success) {
@@ -73,6 +80,14 @@ export default function NewProductPage() {
 
     loadCategories();
   }, []);
+
+  function clearAllFields() {
+    setForm(initialForm);
+    setImages([]);
+    setImageInput("");
+    setVariants([{ sku: "", size: "Free Size", color: "Standard", stock: "10" }]);
+    setError("");
+  }
 
   function updateField(
     field: keyof typeof form,
@@ -120,7 +135,7 @@ export default function NewProductPage() {
   function addVariant() {
     setVariants((current) => [
       ...current,
-      { sku: "", size: "", color: "", stock: "0" },
+      { sku: "", size: "Free Size", color: "Standard", stock: "10" },
     ]);
   }
 
@@ -132,6 +147,7 @@ export default function NewProductPage() {
     event.preventDefault();
     setSaving(true);
     setError("");
+    setSuccess("");
 
     try {
       const response = await fetch("/api/admin/products", {
@@ -144,6 +160,8 @@ export default function NewProductPage() {
           images,
           variants: variants.map((variant) => ({
             ...variant,
+            size: variant.size.trim() || "Free Size",
+            color: variant.color.trim() || "Standard",
             stock: Number(variant.stock || 0),
           })),
         }),
@@ -155,8 +173,19 @@ export default function NewProductPage() {
         throw new Error(data.message || "Unable to create product.");
       }
 
-      router.push("/admin/products");
+      const savedProductName = data.product?.name || form.name || "Product";
+
+      // 1. Clear every input box so they are completely blank for the next entry
+      clearAllFields();
+
+      // 2. Display success message
+      setSuccess(`Product "${savedProductName}" saved successfully! All boxes have been cleared. Redirecting to product list...`);
+
+      // 3. Refresh and redirect to the catalog list
       router.refresh();
+      window.setTimeout(() => {
+        router.push("/admin/products?saved=" + encodeURIComponent(data.product?._id || "true"));
+      }, 1500);
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Something went wrong."
@@ -198,6 +227,42 @@ export default function NewProductPage() {
           </p>
         </div>
 
+        {/* Success notification */}
+        {success && (
+          <div
+            role="status"
+            className="rounded-2xl border border-emerald-300 bg-emerald-50 p-5 shadow-sm"
+          >
+            <div className="flex items-start gap-3.5">
+              <CheckCircle2 size={22} className="shrink-0 text-emerald-600 mt-0.5" />
+              <div className="flex-1">
+                <p className="text-sm font-bold text-emerald-900">
+                  {success}
+                </p>
+                <p className="mt-1 text-xs text-emerald-700">
+                  The product is now saved and available in your catalog. Redirecting to product list...
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2.5">
+                  <Link
+                    href="/admin/products"
+                    className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-700 px-4 py-2 text-xs font-semibold text-white transition hover:bg-emerald-800"
+                  >
+                    View in Product List <ArrowRight size={13} />
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={() => setSuccess("")}
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-300 bg-white px-4 py-2 text-xs font-semibold text-emerald-800 transition hover:bg-emerald-100"
+                  >
+                    Add Another Product
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Error notification */}
         {error && (
           <div
             role="alert"
@@ -242,10 +307,9 @@ export default function NewProductPage() {
               </div>
 
               <div className="sm:col-span-2">
-                <label className={labelClass}>Full Description *</label>
+                <label className={labelClass}>Full Description</label>
                 <textarea
-                  required
-                  rows={5}
+                  rows={4}
                   value={form.description}
                   onChange={(e) =>
                     updateField("description", e.target.value)
@@ -256,14 +320,13 @@ export default function NewProductPage() {
               </div>
 
               <div className="sm:col-span-2">
-                <label className={labelClass}>Category *</label>
+                <label className={labelClass}>Category</label>
                 <select
-                  required
                   value={form.category}
                   onChange={(e) => updateField("category", e.target.value)}
                   className={inputClass}
                 >
-                  <option value="">Select a boutique collection...</option>
+                  <option value="">Select a boutique collection (optional)...</option>
                   {categories.map((cat) => (
                     <option key={cat._id} value={cat._id}>
                       {cat.name}
@@ -378,7 +441,7 @@ export default function NewProductPage() {
 
                   <div>
                     <div className="flex items-center justify-between">
-                      <label className={labelClass}>Size *</label>
+                      <label className={labelClass}>Size</label>
                       <span className="text-[10px] text-stone-400">Quick pick:</span>
                     </div>
                     <input
@@ -386,7 +449,7 @@ export default function NewProductPage() {
                       onChange={(e) =>
                         updateVariant(index, "size", e.target.value)
                       }
-                      placeholder="e.g. S, M, L or Free Size"
+                      placeholder="e.g. Free Size, S, M, L"
                       className={inputClass}
                     />
                     <div className="mt-1.5 flex flex-wrap gap-1">
@@ -418,13 +481,13 @@ export default function NewProductPage() {
                   </div>
 
                   <div>
-                    <label className={labelClass}>Colour *</label>
+                    <label className={labelClass}>Colour</label>
                     <input
                       value={variant.color}
                       onChange={(e) =>
                         updateVariant(index, "color", e.target.value)
                       }
-                      placeholder="e.g. Royal Maroon, Green, Red"
+                      placeholder="e.g. Standard, Red, Green"
                       className={inputClass}
                     />
                     {images.length > 0 && (
@@ -450,7 +513,7 @@ export default function NewProductPage() {
                   </div>
 
                   <div>
-                    <label className={labelClass}>Stock Quantity *</label>
+                    <label className={labelClass}>Stock Quantity</label>
                     <input
                       type="number"
                       min="0"
@@ -459,6 +522,7 @@ export default function NewProductPage() {
                       onChange={(e) =>
                         updateVariant(index, "stock", e.target.value)
                       }
+                      placeholder="10"
                       className={inputClass}
                     />
                   </div>
@@ -521,6 +585,15 @@ export default function NewProductPage() {
 
           {/* Action CTAs */}
           <div className="flex flex-col-reverse justify-end gap-3 sm:flex-row">
+            <button
+              type="button"
+              onClick={clearAllFields}
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#E9DFD2] bg-white px-5 py-3 text-center text-sm font-semibold text-stone-600 transition hover:bg-[#FAF7F2]"
+            >
+              <RotateCcw size={15} />
+              Clear All Boxes
+            </button>
+
             <Link
               href="/admin/products"
               className="rounded-xl border border-[#E9DFD2] bg-white px-6 py-3 text-center text-sm font-semibold text-stone-600 transition hover:bg-[#FAF7F2]"
@@ -530,7 +603,7 @@ export default function NewProductPage() {
 
             <button
               type="submit"
-              disabled={saving || loadingCategories || categories.length === 0}
+              disabled={saving}
               className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#380712] px-8 py-3 text-sm font-semibold text-[#F5DFC0] shadow-md transition hover:bg-[#520A1A] disabled:cursor-not-allowed disabled:opacity-60"
             >
               {saving ? (
