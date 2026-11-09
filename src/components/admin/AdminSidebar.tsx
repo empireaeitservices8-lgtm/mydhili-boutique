@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
   Package,
@@ -11,6 +11,7 @@ import {
   ShoppingBag,
   Users,
   Settings,
+  LogOut,
   ExternalLink,
   ChevronRight,
   Menu,
@@ -61,8 +62,10 @@ const managementNavigation = [
 
 export default function AdminSidebar() {
   const pathname = usePathname();
+  const router = useRouter();
 
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
 
   const isActive = (href: string) => {
     if (href === "/admin") {
@@ -70,6 +73,29 @@ export default function AdminSidebar() {
     }
     return pathname === href || pathname.startsWith(`${href}/`);
   };
+
+  async function handleLogout() {
+    if (loggingOut) return;
+
+    try {
+      setLoggingOut(true);
+
+      const response = await fetch("/api/admin/logout", {
+        method: "POST",
+      });
+
+      if (!response.ok) {
+        throw new Error("Unable to log out.");
+      }
+
+      router.replace("/admin/login");
+      router.refresh();
+    } catch (error) {
+      console.error("Logout error:", error);
+      alert("Unable to log out. Please try again.");
+      setLoggingOut(false);
+    }
+  }
 
   function closeMobileMenu() {
     setMobileOpen(false);
@@ -264,16 +290,17 @@ export default function AdminSidebar() {
           </div>
         </nav>
 
-        {/* Footer info */}
+        {/* Footer Logout */}
         <div className="border-t border-[#D4AF69]/15 bg-[#170104] p-4">
-          <div className="rounded-xl border border-white/5 bg-white/5 px-3.5 py-2.5">
-            <p className="text-xs font-semibold text-[#F5DFC0]">
-              Mydhili Collections
-            </p>
-            <p className="mt-0.5 text-[10px] uppercase tracking-wider text-white/45">
-              Secure Storefront Admin
-            </p>
-          </div>
+          <button
+            type="button"
+            onClick={handleLogout}
+            disabled={loggingOut}
+            className="flex w-full items-center justify-center gap-2.5 rounded-xl border border-red-500/25 bg-red-950/20 px-3.5 py-2.5 text-xs font-semibold text-red-300 transition-all duration-200 hover:border-red-500/50 hover:bg-red-900/30 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <LogOut size={15} />
+            {loggingOut ? "Signing out..." : "Logout"}
+          </button>
         </div>
       </aside>
     </>
