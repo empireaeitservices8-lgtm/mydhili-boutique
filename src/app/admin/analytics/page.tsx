@@ -251,12 +251,7 @@ export default function AdminAnalyticsPage() {
         {/* Authentic Header */}
         <header className="flex flex-col justify-between gap-4 border-b border-stone-200/80 pb-6 sm:flex-row sm:items-end">
           <div>
-            <div className="flex items-center gap-2 text-xs font-medium text-stone-500">
-              <span>Admin</span>
-              <span>/</span>
-              <span className="text-stone-800">Analytics</span>
-            </div>
-            <h1 className="mt-1 text-2xl font-bold tracking-tight text-stone-900 sm:text-3xl">
+            <h1 className="text-2xl font-bold tracking-tight text-stone-900 sm:text-3xl">
               Analytics
             </h1>
             <p className="mt-1 text-xs text-stone-500 sm:text-sm">

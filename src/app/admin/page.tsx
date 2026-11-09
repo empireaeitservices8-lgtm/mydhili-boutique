@@ -170,12 +170,7 @@ export default async function AdminDashboardPage() {
         {/* Top Header / Greeting */}
         <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
           <div>
-            <div className="flex items-center gap-2 text-xs font-medium text-stone-500">
-              <span>Admin</span>
-              <span>/</span>
-              <span className="text-stone-800">Overview</span>
-            </div>
-            <h1 className="mt-1 font-serif text-3xl font-bold tracking-tight text-[#380712] sm:text-4xl">
+            <h1 className="font-serif text-3xl font-bold tracking-tight text-[#380712] sm:text-4xl">
               Boutique Overview
             </h1>
             <p className="mt-1 text-xs text-stone-500 sm:text-sm">

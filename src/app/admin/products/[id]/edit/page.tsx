@@ -276,14 +276,7 @@ export default function EditProductPage() {
         {/* Navigation Breadcrumb & Back */}
         <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
           <div>
-            <div className="flex items-center gap-2 text-xs font-medium text-stone-500">
-              <Link href="/admin/products" className="hover:text-stone-800">
-                Products
-              </Link>
-              <span>/</span>
-              <span className="text-stone-800 font-semibold">Edit Product</span>
-            </div>
-            <h1 className="mt-1 font-serif text-2xl font-bold tracking-tight text-[#380712] sm:text-3xl">
+            <h1 className="font-serif text-2xl font-bold tracking-tight text-[#380712] sm:text-3xl">
               {form.name || "Edit Product"}
             </h1>
           </div>
