@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { connection } from "next/server";
 import Link from "next/link";
 import Image from "next/image";
@@ -6,6 +7,7 @@ import { Bricolage_Grotesque } from "next/font/google";
 import { ArrowLeft, ArrowUpRight, CircleCheck, CircleX, RefreshCw, ShieldCheck, ShoppingBag, Truck } from "lucide-react";
 
 import { prisma } from "@/lib/prisma";
+import { DEFAULT_PRODUCTS } from "@/lib/constants/products";
 import ProductPurchaseOptions from "@/components/cart/ProductPurchaseOptions";
 import ProductGallery from "@/components/products/ProductGallery";
 
@@ -67,9 +69,16 @@ function formatCategory(category?: string) {
 }
 
 async function getProduct(slug: string): Promise<ProductData | null> {
+  const decodedSlug = decodeURIComponent(slug).trim();
+
   try {
     const product = await prisma.product.findFirst({
-      where: { slug, isActive: true },
+      where: {
+        OR: [
+          { slug: decodedSlug, isActive: true },
+          { id: decodedSlug, isActive: true },
+        ],
+      },
       include: {
         category: {
           select: { name: true, slug: true },
@@ -77,26 +86,72 @@ async function getProduct(slug: string): Promise<ProductData | null> {
       },
     });
 
-    if (!product) return null;
-
-    return {
-      _id: product.id,
-      name: product.name,
-      slug: product.slug,
-      description: product.description ?? undefined,
-      shortDescription: product.shortDescription ?? undefined,
-      category: product.category?.name ?? undefined,
-      price: Number(product.price),
-      compareAtPrice: product.compareAtPrice ? Number(product.compareAtPrice) : undefined,
-      images: Array.isArray(product.images) ? (product.images as string[]) : [],
-      variants: Array.isArray(product.variants) ? (product.variants as unknown as ProductVariant[]) : [],
-      isFeatured: product.isFeatured,
-      isActive: product.isActive,
-    };
+    if (product) {
+      return {
+        _id: product.id,
+        name: product.name,
+        slug: product.slug,
+        description: product.description ?? undefined,
+        shortDescription: product.shortDescription ?? undefined,
+        category: product.category?.name ?? undefined,
+        price: Number(product.price),
+        compareAtPrice: product.compareAtPrice ? Number(product.compareAtPrice) : undefined,
+        images: Array.isArray(product.images) ? (product.images as string[]) : [],
+        variants: Array.isArray(product.variants) ? (product.variants as unknown as ProductVariant[]) : [],
+        isFeatured: product.isFeatured,
+        isActive: product.isActive,
+      };
+    }
   } catch (error) {
-    console.error("Failed to fetch product:", error);
-    return null;
+    console.error("Failed to fetch product from database, falling back to default catalog:", error);
   }
+
+  // Gracefully fallback to default products so product detail pages never 404 when DB is offline or empty
+  const fallback = DEFAULT_PRODUCTS.find(
+    (p) =>
+      p.slug.toLowerCase() === decodedSlug.toLowerCase() ||
+      p.id.toLowerCase() === decodedSlug.toLowerCase() ||
+      p._id.toLowerCase() === decodedSlug.toLowerCase()
+  );
+
+  if (fallback) {
+    return {
+      _id: fallback.id || fallback._id,
+      name: fallback.name,
+      slug: fallback.slug,
+      description: fallback.description,
+      shortDescription: fallback.shortDescription,
+      category: fallback.category?.name,
+      price: fallback.price,
+      compareAtPrice: fallback.compareAtPrice ?? undefined,
+      images: fallback.images,
+      variants: fallback.variants,
+      isFeatured: fallback.isFeatured,
+      isActive: fallback.isActive,
+    };
+  }
+
+  return null;
+}
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}): Promise<Metadata> {
+  const { slug } = await params;
+  const product = await getProduct(slug);
+
+  if (!product) {
+    return {
+      title: "Product Not Found | Mydhili Collections",
+    };
+  }
+
+  return {
+    title: `${product.name} | Mydhili Collections`,
+    description: product.shortDescription || product.description,
+  };
 }
 
 export default async function ProductDetailPage({
