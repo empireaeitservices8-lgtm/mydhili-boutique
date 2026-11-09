@@ -24,6 +24,7 @@ type CategoryInfo = {
 
 type Product = {
   _id: string;
+  id?: string;
   name: string;
   slug: string;
   price: number;
@@ -92,10 +93,11 @@ export default function AdminProductsPage() {
   async function handleDeleteConfirmed() {
     if (!productToDelete) return;
     setDeletingId(productToDelete.id);
+    setError("");
 
     try {
       const response = await fetch(
-        `/api/admin/products/${productToDelete.id}`,
+        `/api/admin/products/${encodeURIComponent(productToDelete.id)}`,
         {
           method: "DELETE",
         }
@@ -107,12 +109,15 @@ export default function AdminProductsPage() {
         throw new Error(data.message || "Unable to delete product.");
       }
 
-      setProducts((prev) => prev.filter((p) => p._id !== productToDelete.id));
-      setProductToDelete(null);
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Unable to delete product."
+      setProducts((prev) =>
+        prev.filter((p) => p._id !== productToDelete.id && p.id !== productToDelete.id)
       );
+      setProductToDelete(null);
+      loadProducts();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Unable to delete product.";
+      setError(msg);
+      alert(msg);
     } finally {
       setDeletingId(null);
     }
@@ -489,12 +494,13 @@ export default function AdminProductsPage() {
 
                             <button
                               type="button"
-                              onClick={() =>
+                              onClick={() => {
+                                const pId = product._id || product.id || "";
                                 setProductToDelete({
-                                  id: product._id,
+                                  id: pId,
                                   name: product.name,
-                                })
-                              }
+                                });
+                              }}
                               aria-label={`Delete ${product.name}`}
                               className="inline-flex items-center rounded-xl border border-red-200 bg-white p-2 text-red-600 shadow-sm transition hover:bg-red-50 hover:text-red-700"
                             >
@@ -514,8 +520,8 @@ export default function AdminProductsPage() {
 
       {/* Delete Confirmation Modal */}
       {productToDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs">
-          <div className="w-full max-w-md rounded-3xl border border-[#E9DFD2] bg-white p-6 shadow-2xl">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-3xl border border-[#E9DFD2] bg-white p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center gap-3 text-red-600">
               <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-red-100">
                 <AlertTriangle size={22} />

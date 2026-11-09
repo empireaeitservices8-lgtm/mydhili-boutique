@@ -248,3 +248,66 @@ export async function PATCH(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   return PATCH(request);
 }
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const session = await getAdminSession();
+
+    if (!session) {
+      return NextResponse.json(
+        { success: false, message: "Unauthorized access." },
+        { status: 401 }
+      );
+    }
+
+    const { searchParams } = new URL(request.url);
+    let categoryId = searchParams.get("id");
+
+    if (!categoryId) {
+      try {
+        const body = await request.json();
+        categoryId = body?.id || body?.categoryId;
+      } catch {
+        // empty body ok
+      }
+    }
+
+    if (!categoryId) {
+      return NextResponse.json(
+        { success: false, message: "Category ID is required." },
+        { status: 400 }
+      );
+    }
+
+    // Set categoryId to null on associated products first so foreign keys don't block
+    await prisma.product.updateMany({
+      where: { categoryId },
+      data: { categoryId: null },
+    });
+
+    const deleted = await prisma.category.deleteMany({
+      where: {
+        OR: [{ id: categoryId }, { slug: categoryId }],
+      },
+    });
+
+    if (deleted.count === 0) {
+      return NextResponse.json(
+        { success: false, message: "Category not found or already deleted." },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: "Category deleted successfully.",
+    });
+  } catch (error) {
+    console.error("Delete category error:", error);
+
+    return NextResponse.json(
+      { success: false, message: "Unable to delete category." },
+      { status: 500 }
+    );
+  }
+}

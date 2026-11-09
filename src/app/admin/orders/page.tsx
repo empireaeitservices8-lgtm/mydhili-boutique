@@ -13,6 +13,7 @@ import {
   AlertCircle,
   ExternalLink,
   Filter,
+  Trash2,
 } from "lucide-react";
 
 type OrderItem = {
@@ -103,6 +104,38 @@ export default function AdminOrdersPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [updatingId, setUpdatingId] = useState("");
+  const [deletingId, setDeletingId] = useState("");
+
+  async function handleDeleteOrder(order: Order) {
+    const oId = order._id;
+    const ref = order.orderNumber || oId;
+    if (
+      !window.confirm(
+        `Are you sure you want to delete order #${ref}? This action cannot be reversed.`
+      )
+    ) {
+      return;
+    }
+
+    try {
+      setDeletingId(oId);
+      const res = await fetch(
+        `/api/admin/orders?id=${encodeURIComponent(oId)}`,
+        {
+          method: "DELETE",
+        }
+      );
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || "Failed to delete order.");
+      }
+      setOrders((prev) => prev.filter((o) => o._id !== oId));
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Unable to delete order.");
+    } finally {
+      setDeletingId("");
+    }
+  }
 
   const fetchOrders = useCallback(async () => {
     try {
@@ -482,13 +515,24 @@ export default function AdminOrdersPage() {
                         </td>
 
                         <td className="px-6 py-4 text-right">
-                          <Link
-                            href={`/admin/orders/${order._id}`}
-                            className="inline-flex items-center gap-1.5 rounded-xl border border-[#D4AF69]/40 bg-[#FAF3E8] px-3.5 py-1.5 text-xs font-semibold text-[#380712] shadow-sm transition hover:bg-[#D4AF69]"
-                          >
-                            <Eye size={13} />
-                            Manage
-                          </Link>
+                          <div className="flex items-center justify-end gap-2">
+                            <Link
+                              href={`/admin/orders/${order._id}`}
+                              className="inline-flex items-center gap-1.5 rounded-xl border border-[#D4AF69]/40 bg-[#FAF3E8] px-3.5 py-1.5 text-xs font-semibold text-[#380712] shadow-sm transition hover:bg-[#D4AF69]"
+                            >
+                              <Eye size={13} />
+                              Manage
+                            </Link>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteOrder(order)}
+                              disabled={deletingId === order._id}
+                              aria-label={`Delete order #${order.orderNumber || order._id}`}
+                              className="inline-flex items-center rounded-xl border border-red-200 bg-white p-2 text-red-600 shadow-sm transition hover:bg-red-50 hover:text-red-700 disabled:opacity-50"
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );

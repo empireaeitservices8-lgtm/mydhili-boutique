@@ -333,7 +333,8 @@ export async function DELETE(
       );
     }
 
-    const { id } = await params;
+    const rawId = (await params).id;
+    const id = decodeURIComponent(rawId || "");
 
     if (!id) {
       return NextResponse.json(
@@ -342,13 +343,15 @@ export async function DELETE(
       );
     }
 
-    const product = await prisma.product.delete({
-      where: { id },
+    const result = await prisma.product.deleteMany({
+      where: {
+        OR: [{ id }, { slug: id }],
+      },
     });
 
-    if (!product) {
+    if (result.count === 0) {
       return NextResponse.json(
-        { success: false, message: "Product not found." },
+        { success: false, message: "Product not found or already deleted." },
         { status: 404 }
       );
     }

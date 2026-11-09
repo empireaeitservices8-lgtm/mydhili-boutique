@@ -162,3 +162,58 @@ export async function PATCH(request: NextRequest) {
     );
   }
 }
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const session = await getAdminSession();
+    if (!session) {
+      return NextResponse.json(
+        { success: false, message: "Unauthorized." },
+        { status: 401 }
+      );
+    }
+
+    const { searchParams } = new URL(request.url);
+    let orderId = searchParams.get("id");
+
+    if (!orderId) {
+      try {
+        const body = await request.json();
+        orderId = body?.id || body?.orderId;
+      } catch {
+        // empty body ok
+      }
+    }
+
+    if (!orderId) {
+      return NextResponse.json(
+        { success: false, message: "Order ID is required." },
+        { status: 400 }
+      );
+    }
+
+    const res = await prisma.order.deleteMany({
+      where: {
+        OR: [{ id: orderId }, { orderNumber: orderId }],
+      },
+    });
+
+    if (res.count === 0) {
+      return NextResponse.json(
+        { success: false, message: "Order not found or already deleted." },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: "Order deleted successfully.",
+    });
+  } catch (error) {
+    console.error("Delete order error:", error);
+    return NextResponse.json(
+      { success: false, message: "Unable to delete order." },
+      { status: 500 }
+    );
+  }
+}

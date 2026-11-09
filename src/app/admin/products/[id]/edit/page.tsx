@@ -59,8 +59,31 @@ export default function EditProductPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+
+  async function handleDeleteProduct() {
+    if (!window.confirm(`Are you sure you want to permanently delete "${form.name || "this product"}"? This action cannot be reversed.`)) {
+      return;
+    }
+
+    try {
+      setDeleting(true);
+      const res = await fetch(`/api/admin/products/${encodeURIComponent(productId)}`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || "Failed to delete product.");
+      }
+      router.replace("/admin/products");
+      router.refresh();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Unable to delete product.");
+      setDeleting(false);
+    }
+  }
   const [images, setImages] = useState<string[]>([]);
   const [slug, setSlug] = useState("");
 
@@ -660,16 +683,28 @@ export default function EditProductPage() {
 
           {/* Sticky Bottom Save Actions */}
           <div className="sticky bottom-4 z-20 flex items-center justify-between gap-3 rounded-2xl border border-stone-200 bg-white/95 p-4 shadow-lg backdrop-blur-md">
-            <Link
-              href="/admin/products"
-              className="rounded-xl border border-stone-200 px-5 py-2.5 text-xs font-semibold text-stone-700 hover:bg-stone-50 transition"
-            >
-              Cancel
-            </Link>
+            <div className="flex items-center gap-2">
+              <Link
+                href="/admin/products"
+                className="rounded-xl border border-stone-200 px-5 py-2.5 text-xs font-semibold text-stone-700 hover:bg-stone-50 transition"
+              >
+                Cancel
+              </Link>
+
+              <button
+                type="button"
+                onClick={handleDeleteProduct}
+                disabled={deleting || saving}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-red-200 bg-red-50/60 px-4 py-2.5 text-xs font-semibold text-red-600 hover:bg-red-100 transition disabled:opacity-50"
+              >
+                <Trash2 size={14} />
+                <span>{deleting ? "Deleting..." : "Delete Product"}</span>
+              </button>
+            </div>
 
             <button
               type="submit"
-              disabled={saving}
+              disabled={saving || deleting}
               className="inline-flex items-center gap-2 rounded-xl bg-[#380712] px-7 py-2.5 text-xs font-semibold text-[#F5DFC0] shadow-md transition hover:bg-[#520A1A] disabled:opacity-50"
             >
               {saving ? (

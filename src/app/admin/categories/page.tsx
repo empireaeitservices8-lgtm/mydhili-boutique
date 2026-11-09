@@ -12,6 +12,7 @@ import {
   X,
   ImageIcon,
   ExternalLink,
+  Trash2,
 } from "lucide-react";
 import ImageUpload from "@/components/admin/ImageUpload";
 
@@ -38,9 +39,50 @@ export default function AdminCategoriesPage() {
   const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+
+  async function handleDeleteCategory(category: Category) {
+    const catId = category._id;
+    if (!catId) return;
+
+    if (
+      !window.confirm(
+        `Are you sure you want to delete "${category.name}"? This action cannot be reversed.`
+      )
+    ) {
+      return;
+    }
+
+    try {
+      setDeletingId(catId);
+      setError("");
+
+      const response = await fetch(
+        `/api/admin/categories?id=${encodeURIComponent(catId)}`,
+        {
+          method: "DELETE",
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.message || "Unable to delete category.");
+      }
+
+      setCategories((prev) => prev.filter((c) => c._id !== catId));
+    } catch (err) {
+      const msg =
+        err instanceof Error ? err.message : "Unable to delete category.";
+      setError(msg);
+      alert(msg);
+    } finally {
+      setDeletingId(null);
+    }
+  }
 
   const loadCategories = useCallback(async () => {
     try {
@@ -390,11 +432,21 @@ export default function AdminCategoriesPage() {
                             onClick={() => toggleStatus(category)}
                             className={`rounded-xl px-3 py-1.5 text-xs font-semibold transition ${
                               category.isActive
-                                ? "border border-red-200 bg-white text-red-600 hover:bg-red-50"
+                                ? "border border-amber-200 bg-amber-50/60 text-amber-800 hover:bg-amber-100/80"
                                 : "border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
                             }`}
                           >
                             {category.isActive ? "Hide" : "Activate"}
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteCategory(category)}
+                            disabled={deletingId === category._id}
+                            aria-label={`Delete ${category.name}`}
+                            className="inline-flex items-center rounded-xl border border-red-200 bg-white p-2 text-red-600 shadow-sm transition hover:bg-red-50 hover:text-red-700 disabled:opacity-50"
+                          >
+                            <Trash2 size={13} />
                           </button>
                         </div>
                       </td>
