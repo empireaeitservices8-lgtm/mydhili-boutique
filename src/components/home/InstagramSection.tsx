@@ -27,7 +27,7 @@ const instagramImages = [
     label: "Everyday tradition",
   },
   {
-    src: "https://images.unsplash.com/photo-1583391733956-6c78276477e4?auto=format&fit=crop&w=800&q=85",
+    src: "https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?auto=format&fit=crop&w=800&q=85",
     alt: "Contemporary ethnic clothing",
     label: "Modern classics",
   },

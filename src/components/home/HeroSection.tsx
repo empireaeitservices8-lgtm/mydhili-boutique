@@ -57,7 +57,7 @@ const slides: Slide[] = [
     href: "/shop",
     caption: "Festive Sarees",
     image:
-      "https://images.unsplash.com/photo-1610030469668-935142b96de5?auto=format&fit=crop&w=1800&q=85",
+      "https://images.unsplash.com/photo-1609357605129-26f69add5d6e?auto=format&fit=crop&w=1800&q=85",
   },
   {
     eyebrow: "Everyday Grace",
