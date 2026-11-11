@@ -7,6 +7,7 @@ const nextConfig: NextConfig = {
   },
   cacheComponents: true,
   partialPrefetching: true,
+  serverExternalPackages: ["@prisma/client", ".prisma/client"],
   images: {
     remotePatterns: [
       {

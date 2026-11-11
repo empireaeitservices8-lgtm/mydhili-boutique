@@ -180,7 +180,7 @@ export default function ImageUpload({
               }
             }}
             placeholder="Paste public image link (e.g. https://... or /logo/logo.png)"
-            className="flex-1 rounded-xl border border-[#E9DFD2] bg-white px-3.5 py-2 text-xs outline-none focus:border-[#9A6B35]"
+            className="flex-1 rounded-xl border border-[#E9DFD2] bg-white px-3.5 py-2 text-xs text-[#380712] placeholder:text-stone-400 outline-none focus:border-[#9A6B35]"
           />
           <button
             type="button"

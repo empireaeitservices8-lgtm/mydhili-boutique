@@ -1,5 +1,6 @@
 import dotenv from "dotenv";
 dotenv.config({ path: ".env.local" });
+dotenv.config();
 
 import { PrismaClient } from "@prisma/client";
 import { DEFAULT_CATEGORIES } from "../src/lib/constants/categories";

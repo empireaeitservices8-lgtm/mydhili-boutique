@@ -2,9 +2,6 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { DEFAULT_PRODUCTS } from "@/lib/constants/products";
 
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
-
 export async function GET() {
   try {
     const rawProducts = await prisma.product.findMany({

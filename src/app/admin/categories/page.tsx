@@ -503,7 +503,7 @@ export default function AdminCategoriesPage() {
                       setForm({ ...form, name: e.target.value })
                     }
                     placeholder="e.g. Sarees, Kurtis, Ethnic Gowns"
-                    className="w-full rounded-xl border border-[#E9DFD2] px-4 py-2.5 text-sm outline-none transition focus:border-[#9A6B35] focus:ring-2 focus:ring-[#D4AF69]/20"
+                    className="w-full rounded-xl border border-[#E9DFD2] bg-white px-4 py-2.5 text-sm text-[#380712] placeholder:text-stone-400 outline-none transition focus:border-[#9A6B35] focus:ring-2 focus:ring-[#D4AF69]/20"
                   />
                 </div>
 
@@ -518,7 +518,7 @@ export default function AdminCategoriesPage() {
                       setForm({ ...form, description: e.target.value })
                     }
                     placeholder="Short note about the collection..."
-                    className="w-full rounded-xl border border-[#E9DFD2] px-4 py-2.5 text-sm outline-none transition focus:border-[#9A6B35] focus:ring-2 focus:ring-[#D4AF69]/20"
+                    className="w-full rounded-xl border border-[#E9DFD2] bg-white px-4 py-2.5 text-sm text-[#380712] placeholder:text-stone-400 outline-none transition focus:border-[#9A6B35] focus:ring-2 focus:ring-[#D4AF69]/20"
                   />
                 </div>
 
