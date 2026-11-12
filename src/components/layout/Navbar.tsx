@@ -115,6 +115,15 @@ export default function Navbar() {
     setCategoryMenuOpen(false);
   };
 
+  const customCategories = categories.filter((c) => {
+    const slug = (c.slug || "").toLowerCase();
+    return !CATEGORY_GROUPS.some(
+      (g) =>
+        g.slug === slug ||
+        g.subcategories.some((sub) => sub.slug === slug)
+    );
+  });
+
   const navLinkClass =
     "relative flex h-full items-center text-[11px] font-medium uppercase tracking-[0.16em] text-[#380712]/80 transition-colors duration-300 hover:text-[#9A6B35] after:absolute after:bottom-0 after:left-0 after:h-px after:w-0 after:bg-[#D4AF69] after:transition-all after:duration-300 hover:after:w-full";
 
@@ -283,6 +292,26 @@ export default function Navbar() {
                       </div>
                     ))}
                   </div>
+
+                  {customCategories.length > 0 && (
+                    <div className="mt-5 border-t border-[#380712]/10 pt-4">
+                      <p className="mb-2.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-[#9A6B35]">
+                        More Collections
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {customCategories.map((cat) => (
+                          <Link
+                            key={cat.slug}
+                            href={`/categories/${cat.slug}`}
+                            onClick={closeMenus}
+                            className="rounded-full border border-[#E9DFD2] bg-[#FAF7F2] px-3.5 py-1 text-xs font-medium text-[#380712] transition hover:border-[#D4AF69] hover:bg-[#380712] hover:text-[#E6C47A]"
+                          >
+                            {cat.name}
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -459,6 +488,27 @@ export default function Navbar() {
                     </div>
                   </div>
                 ))}
+
+                {customCategories.length > 0 && (
+                  <div className="space-y-1.5 pt-2">
+                    <p className="font-serif text-base text-[#380712]">
+                      More Collections
+                    </p>
+                    <div className="flex flex-wrap gap-x-3 gap-y-1 pl-1">
+                      {customCategories.map((cat) => (
+                        <Link
+                          key={cat.slug}
+                          href={`/categories/${cat.slug}`}
+                          onClick={closeMenus}
+                          tabIndex={menuOpen ? 0 : -1}
+                          className="text-xs text-stone-600 transition hover:text-[#9A6B35]"
+                        >
+                          {cat.name}
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 

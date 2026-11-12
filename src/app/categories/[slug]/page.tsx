@@ -113,6 +113,37 @@ function fallbackDescription(slug: string) {
   return `Explore our handcrafted collection of ${formatTitle(slug).toLowerCase()} designed for grace, comfort, and timeless beauty.`;
 }
 
+function normalizeImageUrl(rawUrl: string): string {
+  const trimmed = rawUrl.trim().replace(/^["']+|["']+$/g, "");
+  if (!trimmed) return "";
+
+  try {
+    if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+      const parsed = new URL(trimmed);
+
+      const embeddedUrl =
+        parsed.searchParams.get("imgurl") ||
+        parsed.searchParams.get("mediaurl") ||
+        parsed.searchParams.get("imgrefurl");
+      if (embeddedUrl && /^https?:\/\//i.test(embeddedUrl)) {
+        return embeddedUrl;
+      }
+
+      if (parsed.hostname.includes("drive.google.com")) {
+        const match = parsed.pathname.match(/\/file\/d\/([^/]+)/);
+        const fileId = match?.[1] || parsed.searchParams.get("id");
+        if (fileId) {
+          return `https://drive.google.com/uc?export=view&id=${fileId}`;
+        }
+      }
+    }
+  } catch {
+    // Keep original trimmed string if URL parsing fails
+  }
+
+  return trimmed;
+}
+
 async function getCategoryInfo(slug: string) {
   const normalizedSlug = normalizeCategorySlug(slug);
   const defaultBg = categoryBackgrounds[normalizedSlug] || categoryBackgrounds[slug.toLowerCase()] || fallbackBackground;
@@ -121,17 +152,15 @@ async function getCategoryInfo(slug: string) {
     const category = await findCategoryBySlug(slug);
 
     if (category) {
-      const img = category.image?.trim() ?? "";
+      const img = normalizeImageUrl(category.image ?? "");
       const hasCustomImage =
         img.length > 0 &&
-        (img.startsWith("http://") || img.startsWith("https://") || img.startsWith("/")) &&
-        !img.startsWith("/uploads/") &&
-        !img.includes("images.unsplash.com");
+        (img.startsWith("http://") || img.startsWith("https://") || img.startsWith("/"));
 
       return {
         name: category.name || formatTitle(slug),
         description: category.description || fallbackDescription(slug),
-        image: categoryBackgrounds[normalizedSlug] || (hasCustomImage ? img : defaultBg),
+        image: hasCustomImage ? img : defaultBg,
       };
     }
   } catch (error) {
@@ -180,14 +209,11 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
 
       <section className="relative isolate flex min-h-[400px] items-center justify-center overflow-hidden bg-[#24040B] px-5 py-14 text-center text-white sm:min-h-[460px] sm:py-20">
         <div className="absolute inset-0 -z-20">
-          <Image
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
             src={category.image}
-            alt=""
-            fill
-            priority
-            unoptimized
-            sizes="100vw"
-            className="cat-zoom object-cover object-center"
+            alt={category.name}
+            className="cat-zoom h-full w-full object-cover object-center"
           />
         </div>
 

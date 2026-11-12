@@ -32,6 +32,7 @@ interface ShopProductsProps { initialCategory?: string }
 export default function ShopProducts({ initialCategory = "all" }: ShopProductsProps = {}) {
   const { toggleWishlist, isInWishlist } = useWishlist();
   const [products, setProducts] = useState<Product[]>([]);
+  const [storeCategories, setStoreCategories] = useState<Category[]>([]);
   const [selectedCategory, setSelectedCategory] = useState(initialCategory);
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<SortOption>("newest");
@@ -47,11 +48,21 @@ export default function ShopProducts({ initialCategory = "all" }: ShopProductsPr
     setLoading(true);
     setError("");
     try {
-      const res = await fetch("/api/products");
+      const [res, catRes] = await Promise.all([
+        fetch("/api/products"),
+        fetch("/api/categories").catch(() => null),
+      ]);
       if (!res.ok) throw new Error("Failed to load products");
       const data = await res.json();
       if (!data?.success) throw new Error(data?.message || "Unable to load products.");
       setProducts(Array.isArray(data.products) ? data.products : []);
+
+      if (catRes && catRes.ok) {
+        const catData = await catRes.json().catch(() => null);
+        if (catData?.success && Array.isArray(catData.categories)) {
+          setStoreCategories(catData.categories);
+        }
+      }
     } catch (err) {
       console.error("Shop loading failed:", err);
       setError(err instanceof Error ? err.message : "Something went wrong while loading products.");
@@ -74,6 +85,24 @@ export default function ShopProducts({ initialCategory = "all" }: ShopProductsPr
 
   const isActive = (slug: string) => selectedCategory === slug || normalizeCategorySlug(selectedCategory) === slug;
 
+  const customCategories = useMemo(() => {
+    const knownSlugs = new Set<string>();
+    for (const g of CATEGORY_GROUPS) {
+      knownSlugs.add(g.slug);
+      knownSlugs.add(normalizeCategorySlug(g.slug));
+      for (const sub of g.subcategories) {
+        knownSlugs.add(sub.slug);
+        knownSlugs.add(normalizeCategorySlug(sub.slug));
+      }
+    }
+    return storeCategories.filter(
+      (c) =>
+        c.slug &&
+        !knownSlugs.has(c.slug.toLowerCase()) &&
+        !knownSlugs.has(normalizeCategorySlug(c.slug))
+    );
+  }, [storeCategories]);
+
   const activeLabel = useMemo(() => {
     if (selectedCategory === "all") return "";
     for (const g of CATEGORY_GROUPS) {
@@ -81,8 +110,14 @@ export default function ShopProducts({ initialCategory = "all" }: ShopProductsPr
       const sub = g.subcategories.find((s) => s.slug === selectedCategory || normalizeCategorySlug(selectedCategory) === s.slug);
       if (sub) return sub.name;
     }
+    const foundStoreCat = storeCategories.find(
+      (c) =>
+        c.slug.toLowerCase() === selectedCategory.toLowerCase() ||
+        normalizeCategorySlug(c.slug) === normalizeCategorySlug(selectedCategory)
+    );
+    if (foundStoreCat) return foundStoreCat.name;
     return selectedCategory;
-  }, [selectedCategory]);
+  }, [selectedCategory, storeCategories]);
 
   const filteredProducts = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -137,6 +172,18 @@ export default function ShopProducts({ initialCategory = "all" }: ShopProductsPr
           </div>
         );
       })}
+      {customCategories.map((cat) => (
+        <button
+          key={cat.slug}
+          type="button"
+          onClick={() => choose(cat.slug)}
+          className={`flex w-full items-center justify-between rounded-full px-4 py-2.5 text-left text-sm font-semibold transition ${
+            isActive(cat.slug) ? "bg-[#380712] text-[#E6C47A]" : "hover:bg-[#FAF3E8]"
+          }`}
+        >
+          {cat.name}
+        </button>
+      ))}
     </nav>
   );
 
@@ -182,6 +229,9 @@ export default function ShopProducts({ initialCategory = "all" }: ShopProductsPr
         <button type="button" onClick={() => choose("all")} className={`${chipCls} ${selectedCategory === "all" ? chipOn : chipOff}`}>All</button>
         {CATEGORY_GROUPS.map((g) => (
           <button key={g.slug} type="button" onClick={() => choose(g.slug)} className={`${chipCls} ${isActive(g.slug) || g.subcategories.some((s) => isActive(s.slug)) ? chipOn : chipOff}`}>{g.name}</button>
+        ))}
+        {customCategories.map((cat) => (
+          <button key={cat.slug} type="button" onClick={() => choose(cat.slug)} className={`${chipCls} ${isActive(cat.slug) ? chipOn : chipOff}`}>{cat.name}</button>
         ))}
       </div>
 

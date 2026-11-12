@@ -411,7 +411,6 @@ export default function CategorySection() {
               const customImage = category.image?.trim();
               const hasValidCustomImage =
                 !!customImage &&
-                !customImage.startsWith("/uploads/") &&
                 (customImage.startsWith("http://") ||
                   customImage.startsWith("https://") ||
                   customImage.startsWith("/"));
