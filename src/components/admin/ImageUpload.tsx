@@ -118,14 +118,46 @@ export default function ImageUpload({
     }
   }
 
+  function normalizeImageUrl(rawUrl: string): string {
+    const trimmed = rawUrl.trim().replace(/^["']+|["']+$/g, "");
+    if (!trimmed) return "";
+
+    try {
+      if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+        const parsed = new URL(trimmed);
+
+        const embeddedUrl =
+          parsed.searchParams.get("imgurl") ||
+          parsed.searchParams.get("mediaurl");
+        if (embeddedUrl && /^https?:\/\//i.test(embeddedUrl)) {
+          return embeddedUrl;
+        }
+
+        if (parsed.hostname.includes("drive.google.com")) {
+          const match = parsed.pathname.match(/\/file\/d\/([^/]+)/);
+          const fileId = match?.[1] || parsed.searchParams.get("id");
+          if (fileId) {
+            return `https://drive.google.com/uc?export=view&id=${fileId}`;
+          }
+        }
+      }
+    } catch {
+      // Keep original trimmed string if URL parsing fails
+    }
+
+    return trimmed;
+  }
+
   function handleAddUrl() {
-    const trimmed = urlInput.trim();
-    if (!trimmed) return;
+    const normalized = normalizeImageUrl(urlInput);
+    if (!normalized) return;
 
     if (multiple) {
-      onChange([...currentImages, trimmed]);
+      if (!currentImages.includes(normalized)) {
+        onChange([...currentImages, normalized]);
+      }
     } else {
-      onChange(trimmed);
+      onChange(normalized);
     }
 
     setUrlInput("");
@@ -173,6 +205,11 @@ export default function ImageUpload({
             type="text"
             value={urlInput}
             onChange={(e) => setUrlInput(e.target.value)}
+            onBlur={() => {
+              if (urlInput.trim()) {
+                handleAddUrl();
+              }
+            }}
             onKeyDown={(e) => {
               if (e.key === "Enter") {
                 e.preventDefault();
@@ -184,6 +221,7 @@ export default function ImageUpload({
           />
           <button
             type="button"
+            onMouseDown={(e) => e.preventDefault()}
             onClick={handleAddUrl}
             className="rounded-xl bg-[#380712] px-4 py-2 text-xs font-semibold text-[#F5DFC0] transition hover:bg-[#520A1A]"
           >

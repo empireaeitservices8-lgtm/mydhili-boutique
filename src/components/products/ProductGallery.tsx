@@ -1,8 +1,38 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Image from "next/image";
 import { ChevronLeft, ChevronRight, ShoppingBag } from "lucide-react";
+
+function normalizeImageUrl(rawUrl: string): string {
+  const trimmed = rawUrl.trim().replace(/^["']+|["']+$/g, "");
+  if (!trimmed) return "";
+
+  try {
+    if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+      const parsed = new URL(trimmed);
+
+      const embeddedUrl =
+        parsed.searchParams.get("imgurl") ||
+        parsed.searchParams.get("mediaurl") ||
+        parsed.searchParams.get("imgrefurl");
+      if (embeddedUrl && /^https?:\/\//i.test(embeddedUrl)) {
+        return embeddedUrl;
+      }
+
+      if (parsed.hostname.includes("drive.google.com")) {
+        const match = parsed.pathname.match(/\/file\/d\/([^/]+)/);
+        const fileId = match?.[1] || parsed.searchParams.get("id");
+        if (fileId) {
+          return `https://drive.google.com/uc?export=view&id=${fileId}`;
+        }
+      }
+    }
+  } catch {
+    // Keep original trimmed string if URL parsing fails
+  }
+
+  return trimmed;
+}
 
 interface ProductGalleryProps {
   name: string;
@@ -22,12 +52,15 @@ export default function ProductGallery({
   isOutOfStock = false,
 }: ProductGalleryProps) {
   const [activeIndex, setActiveIndex] = useState(0);
+  const [brokenImages, setBrokenImages] = useState<Record<string, boolean>>({});
 
-  const cleanImages = (images || []).filter(
-    (img) => typeof img === "string" && img.trim().length > 0
-  );
+  const cleanImages = (images || [])
+    .filter((img) => typeof img === "string" && img.trim().length > 0)
+    .map(normalizeImageUrl)
+    .filter(Boolean);
   const total = cleanImages.length;
   const currentImage = cleanImages[activeIndex] || "";
+  const isCurrentBroken = Boolean(currentImage && brokenImages[currentImage]);
 
   // Listen to colour selection events from ProductPurchaseOptions
   useEffect(() => {
@@ -80,14 +113,15 @@ export default function ProductGallery({
     <section className="min-w-0 lg:sticky lg:top-28 lg:self-start">
       {/* Main Image Container with Navigation Arrows */}
       <div className="group relative flex aspect-[4/5] items-center justify-center overflow-hidden rounded-3xl bg-gradient-to-br from-[#380712] to-[#6D2636] shadow-[0_24px_60px_rgba(56,7,18,0.14)]">
-        {currentImage ? (
-          <Image
+        {currentImage && !isCurrentBroken ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
             src={currentImage}
             alt={`${name} - photo ${activeIndex + 1}`}
-            fill
-            priority
-            sizes="(max-width: 1024px) 100vw, 50vw"
-            className={`object-cover transition-all duration-500 ease-out ${isOutOfStock ? "opacity-75 grayscale-[25%]" : ""}`}
+            onError={() =>
+              setBrokenImages((prev) => ({ ...prev, [currentImage]: true }))
+            }
+            className={`absolute inset-0 h-full w-full object-cover transition-all duration-500 ease-out ${isOutOfStock ? "opacity-75 grayscale-[25%]" : ""}`}
           />
         ) : (
           <div className="flex flex-col items-center gap-3 px-8 text-center text-[#E6C47A]">
@@ -170,13 +204,21 @@ export default function ProductGallery({
                     : "border-transparent opacity-70 hover:border-[#D4AF69] hover:opacity-100"
                 }`}
               >
-                <Image
-                  src={image}
-                  alt={`${name} thumbnail ${index + 1}`}
-                  fill
-                  sizes="64px"
-                  className="object-cover"
-                />
+                {brokenImages[image] ? (
+                  <span className="flex h-full w-full items-center justify-center bg-[#380712] text-[#E6C47A]">
+                    <ShoppingBag size={18} strokeWidth={1.4} />
+                  </span>
+                ) : (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={image}
+                    alt={`${name} thumbnail ${index + 1}`}
+                    onError={() =>
+                      setBrokenImages((prev) => ({ ...prev, [image]: true }))
+                    }
+                    className="h-full w-full object-cover"
+                  />
+                )}
               </button>
             );
           })}

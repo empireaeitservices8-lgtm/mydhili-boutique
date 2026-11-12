@@ -136,7 +136,8 @@ export default function WishlistPage() {
                     <div className="relative aspect-[3/4] overflow-hidden rounded-3xl bg-gradient-to-br from-[#380712] to-[#6D2636] shadow-[0_10px_30px_rgba(56,7,18,0.07)] transition-all duration-500 group-hover:-translate-y-1 group-hover:shadow-[0_22px_50px_rgba(56,7,18,0.18)]">
                       <Link href={`/products/${item.slug}`} className="block h-full w-full" aria-label={`View ${item.name}`}>
                         {item.image ? (
-                          <Image src={item.image} alt={item.name} fill sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw" className="object-cover transition-transform duration-700 ease-out group-hover:scale-105" />
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={item.image} alt={item.name} className="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-105" />
                         ) : (
                           <span className="flex h-full items-center justify-center text-[#E6C47A]/70"><ShoppingBag size={34} strokeWidth={1.2} /></span>
                         )}

@@ -39,6 +39,7 @@ export default function ShopProducts({ initialCategory = "all" }: ShopProductsPr
   const [error, setError] = useState("");
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [openGroups, setOpenGroups] = useState<string[]>([]);
+  const [brokenImages, setBrokenImages] = useState<Record<string, boolean>>({});
 
   useEffect(() => { if (initialCategory) setSelectedCategory(initialCategory); }, [initialCategory]);
 
@@ -238,12 +239,12 @@ export default function ShopProducts({ initialCategory = "all" }: ShopProductsPr
             <div className="grid grid-cols-2 gap-x-3 gap-y-9 sm:grid-cols-3 sm:gap-x-5 sm:gap-y-11">
               {filteredProducts.map((product) => {
                 const imgs = (product.images || []).filter((i) => typeof i === "string" && i.trim().length > 0);
-                const image = imgs[0] || fallbackImage;
-                const second = imgs[1];
+                const productId = product.id || product._id || product.slug;
+                const image = brokenImages[productId] ? fallbackImage : (imgs[0] || fallbackImage);
+                const second = imgs[1] && !brokenImages[`${productId}-second`] ? imgs[1] : undefined;
                 const hasDiscount = typeof product.compareAtPrice === "number" && product.compareAtPrice > product.price;
                 const discount = hasDiscount ? Math.round(((product.compareAtPrice! - product.price) / product.compareAtPrice!) * 100) : 0;
                 const categoryName = typeof product.category === "object" && product.category ? product.category.name : "";
-                const productId = product.id || product._id || product.slug;
                 const wished = isInWishlist(productId);
                 const variants = Array.isArray(product.variants) ? product.variants : [];
                 const totalStock = variants.reduce((sum, v) => sum + Number(v.stock ?? 0), 0);
@@ -255,10 +256,10 @@ export default function ShopProducts({ initialCategory = "all" }: ShopProductsPr
                     <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#380712] to-[#6D2636] shadow-[0_10px_30px_rgba(56,7,18,0.07)] transition-all duration-500 group-hover:-translate-y-1 group-hover:shadow-[0_22px_50px_rgba(56,7,18,0.18)]">
                       <Link href={`/products/${product.slug}`} className="relative block aspect-[3/4] overflow-hidden" aria-label={`View ${product.name}`}>
                         {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={image} alt={product.name} loading="lazy" className={`absolute inset-0 h-full w-full object-cover transition-all duration-700 ease-out ${soldOut ? "opacity-70 grayscale-[35%]" : ""} ${second ? "group-hover:scale-105 group-hover:opacity-0" : "group-hover:scale-[1.07]"}`} />
+                        <img src={image} alt={product.name} loading="lazy" onError={() => setBrokenImages((prev) => ({ ...prev, [productId]: true }))} className={`absolute inset-0 h-full w-full object-cover transition-all duration-700 ease-out ${soldOut ? "opacity-70 grayscale-[35%]" : ""} ${second ? "group-hover:scale-105 group-hover:opacity-0" : "group-hover:scale-[1.07]"}`} />
                         {second && (
                           // eslint-disable-next-line @next/next/no-img-element
-                          <img src={second} alt="" loading="lazy" className="absolute inset-0 h-full w-full scale-105 object-cover opacity-0 transition-all duration-700 ease-out group-hover:scale-100 group-hover:opacity-100" />
+                          <img src={second} alt="" loading="lazy" onError={() => setBrokenImages((prev) => ({ ...prev, [`${productId}-second`]: true }))} className="absolute inset-0 h-full w-full scale-105 object-cover opacity-0 transition-all duration-700 ease-out group-hover:scale-100 group-hover:opacity-100" />
                         )}
                         <span className="absolute inset-0 bg-gradient-to-t from-[#24040B]/35 via-transparent to-transparent" />
                       </Link>

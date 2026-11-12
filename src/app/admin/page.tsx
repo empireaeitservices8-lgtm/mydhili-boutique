@@ -478,12 +478,11 @@ export default async function AdminDashboardPage() {
                   >
                     <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-[#FAF3E8]">
                       {p.images?.[0] ? (
-                        <Image
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
                           src={p.images[0]}
                           alt={p.name}
-                          fill
-                          sizes="48px"
-                          className="object-cover"
+                          className="h-full w-full object-cover"
                         />
                       ) : (
                         <div className="flex h-full w-full items-center justify-center text-[#9A6B35]">

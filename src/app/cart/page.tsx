@@ -226,12 +226,11 @@ export default function CartPage() {
                         aria-label={`View ${item.name}`}
                       >
                         {item.image ? (
-                          <Image
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
                             src={item.image}
                             alt={item.name}
-                            fill
-                            sizes="(min-width: 640px) 144px, 112px"
-                            className={`object-cover transition-transform duration-700 ease-out group-hover:scale-105 ${
+                            className={`h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-105 ${
                               isOutOfStock ? "opacity-60 grayscale-[40%]" : ""
                             }`}
                           />
