@@ -1,7 +1,8 @@
-import { NextResponse } from "next/server";
+import { NextResponse, connection } from "next/server";
 import { fetchStoreCategories, DEFAULT_CATEGORIES } from "@/lib/categories";
 
 export async function GET() {
+  await connection();
   try {
     const categories = await fetchStoreCategories();
 

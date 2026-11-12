@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, connection } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAdminSession } from "@/lib/auth";
 
@@ -23,6 +23,7 @@ const noCacheHeaders = {
 
 // GET: Fetch products and categories
 export async function GET() {
+  await connection();
   try {
     if (!(await authorizeAdmin())) {
       return NextResponse.json(

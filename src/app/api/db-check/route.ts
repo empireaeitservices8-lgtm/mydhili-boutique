@@ -1,7 +1,8 @@
-import { NextResponse } from "next/server";
+import { NextResponse, connection } from "next/server";
 import { prisma } from "@/lib/prisma";
 
 export async function GET() {
+  await connection();
   try {
     await prisma.$queryRawUnsafe("SELECT 1;");
     const [categoriesCount, productsCount, ordersCount] = await Promise.all([

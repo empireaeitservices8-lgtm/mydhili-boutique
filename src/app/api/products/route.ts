@@ -1,8 +1,9 @@
-import { NextResponse } from "next/server";
+import { NextResponse, connection } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { DEFAULT_PRODUCTS } from "@/lib/constants/products";
 
 export async function GET() {
+  await connection();
   try {
     const rawProducts = await prisma.product.findMany({
       where: { isActive: true },
